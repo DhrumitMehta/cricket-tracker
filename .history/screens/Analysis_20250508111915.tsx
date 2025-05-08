@@ -11,7 +11,7 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { Video as ExpoVideo } from 'expo-video';
 import Slider from '@react-native-community/slider';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
@@ -60,16 +60,19 @@ const Analysis = () => {
     width: 0,
     height: 0,
   });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
-  const primaryVideoRef = useRef<Video>(null);
-  const secondaryVideoRef = useRef<Video>(null);
+  const primaryVideoRef = useRef<ExpoVideo>(null);
+  const secondaryVideoRef = useRef<ExpoVideo>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const videoHeight = isSideBySide ? screenHeight * 0.4 : screenHeight * 0.5;
 
   const selectVideo = async (isSecondary: boolean = false) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        mediaTypes: [ImagePicker.MediaType.VIDEO],
         allowsEditing: true,
         quality: 1,
       });
@@ -90,6 +93,40 @@ const Analysis = () => {
     setAnnotations([...annotations, annotation]);
   };
 
+  const handlePlaybackStatusUpdate = (status: ExpoVideo.PlaybackStatus) => {
+    if (status.isLoaded) {
+      setCurrentTime(status.positionMillis / 1000);
+      if (status.durationMillis) {
+        setDuration(status.durationMillis / 1000);
+      }
+    }
+  };
+
+  const togglePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleSliderChange = async (value: number) => {
+    try {
+      const videoRef = primaryVideoRef.current;
+      if (!videoRef) return;
+
+      const wasPlaying = isPlaying;
+      if (wasPlaying) {
+        setIsPlaying(false);
+      }
+
+      await videoRef.setPositionAsync(Math.floor(value * 1000));
+      setCurrentTime(value);
+
+      if (wasPlaying) {
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      console.error('Error seeking video:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.videoContainer, { height: videoHeight }]}>
@@ -102,18 +139,22 @@ const Analysis = () => {
                 setVideoLayout({ width, height });
               }}
             >
-              <Video
+              <ExpoVideo
                 ref={primaryVideoRef}
                 source={{ uri: primaryVideoUri }}
                 style={styles.video}
-                resizeMode={ResizeMode.CONTAIN}
-                useNativeControls={true}
+                resizeMode="contain"
+                useNativeControls={false}
+                shouldPlay={isPlaying}
+                onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+                progressUpdateIntervalMillis={16}
+                isMuted={false}
               />
               {isDrawingMode && (
                 <VideoAnnotationLayer
                   width={videoLayout.width}
                   height={videoLayout.height}
-                  currentTime={0}
+                  currentTime={currentTime}
                   annotations={annotations}
                   onAddAnnotation={handleAddAnnotation}
                   isDrawingMode={isDrawingMode}
@@ -133,12 +174,13 @@ const Analysis = () => {
         {isSideBySide && (
           <View style={styles.videoWrapper}>
             {secondaryVideoUri ? (
-              <Video
+              <ExpoVideo
                 ref={secondaryVideoRef}
                 source={{ uri: secondaryVideoUri }}
                 style={styles.video}
-                resizeMode={ResizeMode.CONTAIN}
-                useNativeControls={true}
+                resizeMode="contain"
+                useNativeControls={false}
+                shouldPlay={isPlaying}
               />
             ) : (
               <TouchableOpacity
@@ -175,6 +217,33 @@ const Analysis = () => {
         >
           <Icon name="compare" size={24} color={isSideBySide ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.controls}>
+        <TouchableOpacity 
+          onPress={togglePlayPause} 
+          disabled={!primaryVideoUri}
+        >
+          <Icon 
+            name={isPlaying ? "pause" : "play"} 
+            size={24} 
+            color={primaryVideoUri ? '#000' : '#999'} 
+          />
+        </TouchableOpacity>
+        <View style={styles.timeInfo}>
+          <Text>{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}</Text>
+        </View>
+        <Slider
+          style={styles.slider}
+          value={currentTime}
+          maximumValue={duration}
+          minimumValue={0}
+          onValueChange={handleSliderChange}
+          disabled={!primaryVideoUri}
+        />
+        <View style={styles.timeInfo}>
+          <Text>{Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}</Text>
+        </View>
       </View>
 
       {/* Notes section */}
@@ -285,22 +354,8 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 10,
   },
-  speedControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    padding: 10,
-  },
-  speedButton: {
-    padding: 8,
-    marginHorizontal: 5,
-    borderRadius: 5,
-    backgroundColor: '#f0f0f0',
-  },
-  activeSpeedButton: {
-    backgroundColor: '#007AFF',
-  },
-  speedButtonText: {
-    fontSize: 12,
+  timeInfo: {
+    marginHorizontal: 10,
   },
   notesContainer: {
     maxHeight: 200,
@@ -365,9 +420,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#666',
     fontSize: 16,
-  },
-  timeInfo: {
-    marginHorizontal: 10,
   },
 });
 

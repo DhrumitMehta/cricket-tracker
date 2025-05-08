@@ -11,7 +11,7 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
@@ -48,23 +48,57 @@ interface VideoLoad {
 }
 
 const Analysis = () => {
-  const [primaryVideoUri, setPrimaryVideoUri] = useState<string | null>(null);
-  const [secondaryVideoUri, setSecondaryVideoUri] = useState<string | null>(null);
-  const [isSideBySide, setIsSideBySide] = useState(false);
-  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [notes, setNotes] = useState<Note[]>([]);
   const [annotations, setAnnotations] = useState<VideoAnnotation[]>([]);
+  const [selectedArea, setSelectedArea] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [isSideBySide, setIsSideBySide] = useState(false);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
-  const [videoLayout, setVideoLayout] = useState({
-    width: 0,
-    height: 0,
-  });
+  const [primaryVideoUri, setPrimaryVideoUri] = useState<string | null>(null);
+  const [secondaryVideoUri, setSecondaryVideoUri] = useState<string | null>(null);
 
   const primaryVideoRef = useRef<Video>(null);
   const secondaryVideoRef = useRef<Video>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const videoHeight = isSideBySide ? screenHeight * 0.4 : screenHeight * 0.5;
+
+  const [videoLayout, setVideoLayout] = useState({
+    width: 0,
+    height: 0,
+  });
+
+  const requestPermissions = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        console.log('Requesting permissions...');
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        ]);
+        console.log('Permission results:', granted);
+        const hasPermissions = Object.values(granted).every(
+          (permission) => permission === PermissionsAndroid.RESULTS.GRANTED
+        );
+        console.log('Has all permissions:', hasPermissions);
+        return hasPermissions;
+      } catch (err) {
+        console.warn('Error requesting permissions:', err);
+        return false;
+      }
+    }
+    return true;
+  };
 
   const selectVideo = async (isSecondary: boolean = false) => {
     try {
@@ -83,6 +117,49 @@ const Analysis = () => {
       }
     } catch (error) {
       console.error('Error selecting video:', error);
+    }
+  };
+
+  const handlePlaybackStatusUpdate = (status: any) => {
+    if (status.isLoaded) {
+      setIsPlaying(status.isPlaying);
+    }
+  };
+
+  const handleSliderChange = (value: number) => {
+    setCurrentTime(value);
+    primaryVideoRef.current?.setPositionAsync(value);
+    if (isSideBySide) {
+      secondaryVideoRef.current?.setPositionAsync(value);
+    }
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackRate(speed);
+    if (primaryVideoRef.current) {
+      primaryVideoRef.current.setRateAsync(speed, true);
+    }
+    if (secondaryVideoRef.current && isSideBySide) {
+      secondaryVideoRef.current.setRateAsync(speed, true);
+    }
+  };
+
+  const handleFrameStep = (forward: boolean) => {
+    const frameTime = 1/30; // Assuming 30fps
+    const newTime = currentTime + (forward ? frameTime : -frameTime);
+    handleSliderChange(Math.max(0, Math.min(newTime, duration)));
+  };
+
+  const addNote = () => {
+    if (noteText.trim()) {
+      const newNote: Note = {
+        id: Date.now().toString(),
+        timestamp: currentTime,
+        text: noteText,
+      };
+      setNotes([...notes, newNote]);
+      setNoteText('');
+      setShowNoteInput(false);
     }
   };
 
@@ -107,18 +184,19 @@ const Analysis = () => {
                 source={{ uri: primaryVideoUri }}
                 style={styles.video}
                 resizeMode={ResizeMode.CONTAIN}
-                useNativeControls={true}
+                shouldPlay={isPlaying}
+                rate={playbackRate}
+                useNativeControls
+                onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
               />
-              {isDrawingMode && (
-                <VideoAnnotationLayer
-                  width={videoLayout.width}
-                  height={videoLayout.height}
-                  currentTime={0}
-                  annotations={annotations}
-                  onAddAnnotation={handleAddAnnotation}
-                  isDrawingMode={isDrawingMode}
-                />
-              )}
+              <VideoAnnotationLayer
+                width={videoLayout.width}
+                height={videoLayout.height}
+                currentTime={currentTime}
+                annotations={annotations}
+                onAddAnnotation={handleAddAnnotation}
+                isDrawingMode={isDrawingMode}
+              />
             </View>
           ) : (
             <TouchableOpacity
@@ -138,7 +216,9 @@ const Analysis = () => {
                 source={{ uri: secondaryVideoUri }}
                 style={styles.video}
                 resizeMode={ResizeMode.CONTAIN}
-                useNativeControls={true}
+                shouldPlay={isPlaying}
+                rate={playbackRate}
+                useNativeControls
               />
             ) : (
               <TouchableOpacity
@@ -177,12 +257,53 @@ const Analysis = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Notes section */}
+      <View style={styles.controls}>
+        <TouchableOpacity onPress={() => handleFrameStep(false)} disabled={!primaryVideoUri}>
+          <Icon name="skip-backward" size={24} color={primaryVideoUri ? '#000' : '#999'} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => handlePlaybackStatusUpdate({ isPlaying: !isPlaying })} disabled={!primaryVideoUri}>
+          <Icon name={isPlaying ? "pause" : "play"} size={24} color={primaryVideoUri ? '#000' : '#999'} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => handleFrameStep(true)} disabled={!primaryVideoUri}>
+          <Icon name="skip-forward" size={24} color={primaryVideoUri ? '#000' : '#999'} />
+        </TouchableOpacity>
+        <Slider
+          style={styles.slider}
+          value={currentTime}
+          maximumValue={duration}
+          minimumValue={0}
+          onValueChange={handleSliderChange}
+          disabled={!primaryVideoUri}
+        />
+      </View>
+
+      <View style={styles.speedControls}>
+        {[0.25, 0.5, 1, 1.5, 2].map((speed) => (
+          <TouchableOpacity
+            key={speed}
+            style={[
+              styles.speedButton,
+              playbackRate === speed && styles.activeSpeedButton,
+            ]}
+            onPress={() => handleSpeedChange(speed)}
+            disabled={!primaryVideoUri}
+          >
+            <Text style={[
+              styles.speedButtonText,
+              { color: primaryVideoUri ? (playbackRate === speed ? '#fff' : '#000') : '#999' }
+            ]}>
+              {speed}x
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <ScrollView style={styles.notesContainer}>
         {notes.map((note) => (
           <TouchableOpacity
             key={note.id}
             style={styles.noteItem}
+            onPress={() => handleSliderChange(note.timestamp)}
           >
             <Text style={styles.noteTimestamp}>
               {Math.floor(note.timestamp / 60)}:{Math.floor(note.timestamp % 60)
@@ -218,17 +339,7 @@ const Analysis = () => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
-                onPress={() => {
-                  if (noteText.trim()) {
-                    setNotes([...notes, {
-                      id: Date.now().toString(),
-                      timestamp: 0,
-                      text: noteText,
-                    }]);
-                    setNoteText('');
-                    setShowNoteInput(false);
-                  }
-                }}
+                onPress={addNote}
               >
                 <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
@@ -247,8 +358,7 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     position: 'relative',
-    flex: 1,
-    overflow: 'hidden',
+    flexDirection: 'row',
   },
   videoWrapper: {
     flex: 1,
@@ -365,9 +475,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#666',
     fontSize: 16,
-  },
-  timeInfo: {
-    marginHorizontal: 10,
   },
 });
 
