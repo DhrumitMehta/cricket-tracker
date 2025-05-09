@@ -101,32 +101,26 @@ const VideoLoopSlider = ({
         </TouchableOpacity>
       </View>
       <View style={styles.slidersContainer}>
-        <View style={styles.sliderRow}>
-          <Text style={styles.sliderLabel}>Start</Text>
-          <Slider
-            style={styles.rangeSlider}
-            minimumValue={0}
-            maximumValue={duration}
-            value={startSliderValue}
-            onValueChange={handleStartChange}
-            minimumTrackTintColor="#666"
-            maximumTrackTintColor="#007AFF"
-            thumbTintColor="#007AFF"
-          />
-        </View>
-        <View style={styles.sliderRow}>
-          <Text style={styles.sliderLabel}>End</Text>
-          <Slider
-            style={styles.rangeSlider}
-            minimumValue={0}
-            maximumValue={duration}
-            value={endSliderValue}
-            onValueChange={handleEndChange}
-            minimumTrackTintColor="#007AFF"
-            maximumTrackTintColor="#666"
-            thumbTintColor="#007AFF"
-          />
-        </View>
+        <Slider
+          style={styles.rangeSlider}
+          minimumValue={0}
+          maximumValue={duration}
+          value={startSliderValue}
+          onValueChange={handleStartChange}
+          minimumTrackTintColor="#666"
+          maximumTrackTintColor="#007AFF"
+          thumbTintColor="#007AFF"
+        />
+        <Slider
+          style={[styles.rangeSlider, styles.endSlider]}
+          minimumValue={0}
+          maximumValue={duration}
+          value={endSliderValue}
+          onValueChange={handleEndChange}
+          minimumTrackTintColor="#007AFF"
+          maximumTrackTintColor="#666"
+          thumbTintColor="#007AFF"
+        />
       </View>
     </View>
   );
@@ -139,7 +133,6 @@ const Analysis = () => {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isTextMode, setIsTextMode] = useState(false);
   const [isEraserMode, setIsEraserMode] = useState(false);
-  const [showLoopSlider, setShowLoopSlider] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [annotations, setAnnotations] = useState<VideoAnnotation[]>([]);
   const [noteText, setNoteText] = useState('');
@@ -529,8 +522,8 @@ const Analysis = () => {
         </View>
 
         <View style={[styles.controlsContainer, { height: controlsHeight }]}>
-          {/* Show loop slider only when toggled */}
-          {showLoopSlider && primaryVideoUri && (
+          {/* Loop Range Control */}
+          {primaryVideoUri && (
             <VideoLoopSlider
               duration={videoDuration}
               loopStartTime={loopStartTime}
@@ -542,10 +535,7 @@ const Analysis = () => {
 
           {/* Speed Control */}
           <View style={styles.speedControl}>
-            <Text style={styles.speedLabel}>
-              Speed: {formatSpeed(playbackSpeed)}
-              {loopEndTime !== null && ` | Loop: ${formatTime(loopStartTime)}-${formatTime(loopEndTime)}`}
-            </Text>
+            <Text style={styles.speedLabel}>Speed: {formatSpeed(playbackSpeed)}</Text>
             <Slider
               style={styles.speedSlider}
               minimumValue={0.01}
@@ -578,44 +568,37 @@ const Analysis = () => {
 
       <View style={styles.toolbar}>
         <TouchableOpacity
-          style={[styles.toolButton, showLoopSlider && styles.activeToolButton]}
-          onPress={() => setShowLoopSlider(!showLoopSlider)}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="repeat" size={24} color={showLoopSlider ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.toolButton, isDrawingMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsDrawingMode(!isDrawingMode);
-            setIsTextMode(false);
-            setIsEraserMode(false);
-          }}
+              onPress={() => {
+                setIsDrawingMode(!isDrawingMode);
+                setIsTextMode(false);
+                setIsEraserMode(false);
+              }}
           disabled={!primaryVideoUri}
         >
           <Icon name="pencil" size={24} color={isDrawingMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toolButton, isTextMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsTextMode(!isTextMode);
-            setIsDrawingMode(false);
-            setIsEraserMode(false);
-          }}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsEraserMode(!isEraserMode);
-            setIsDrawingMode(false);
-            setIsTextMode(false);
-          }}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+            <TouchableOpacity
+              style={[styles.toolButton, isTextMode && styles.activeToolButton]}
+              onPress={() => {
+                setIsTextMode(!isTextMode);
+                setIsDrawingMode(false);
+                setIsEraserMode(false);
+              }}
+              disabled={!primaryVideoUri}
+            >
+              <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
+              onPress={() => {
+                setIsEraserMode(!isEraserMode);
+                setIsDrawingMode(false);
+                setIsTextMode(false);
+              }}
+              disabled={!primaryVideoUri}
+            >
+              <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.toolButton}
@@ -924,22 +907,15 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   slidersContainer: {
-    marginTop: 4,
-  },
-  sliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 20,
-    marginVertical: 2,
-  },
-  sliderLabel: {
-    fontSize: 10,
-    color: '#666',
-    width: 30,
+    height: 32,
+    position: 'relative',
   },
   rangeSlider: {
-    flex: 1,
-    height: '100%',
+    position: 'absolute',
+    width: '100%',
+  },
+  endSlider: {
+    transform: [{ scaleY: -1 }],
   },
   resetButton: {
     backgroundColor: '#f44336',

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import Slider from '@react-native-community/slider';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
@@ -55,83 +56,6 @@ interface PinchContext extends Record<string, unknown> {
   startScale: number;
 }
 
-const VideoLoopSlider = ({
-  duration,
-  loopStartTime,
-  loopEndTime,
-  onRangeChange,
-  formatTime,
-}: {
-  duration: number;
-  loopStartTime: number;
-  loopEndTime: number | null;
-  onRangeChange: (start: number, end: number) => void;
-  formatTime: (time: number) => string;
-}) => {
-  const [startSliderValue, setStartSliderValue] = useState(loopStartTime);
-  const [endSliderValue, setEndSliderValue] = useState(loopEndTime || duration);
-
-  useEffect(() => {
-    setStartSliderValue(loopStartTime);
-    setEndSliderValue(loopEndTime || duration);
-  }, [loopStartTime, loopEndTime, duration]);
-
-  const handleStartChange = (value: number) => {
-    const newStart = Math.min(value, endSliderValue - 0.1);
-    setStartSliderValue(newStart);
-    onRangeChange(newStart, endSliderValue);
-  };
-
-  const handleEndChange = (value: number) => {
-    const newEnd = Math.max(value, startSliderValue + 0.1);
-    setEndSliderValue(newEnd);
-    onRangeChange(startSliderValue, newEnd);
-  };
-
-  const handleReset = () => {
-    onRangeChange(0, duration);
-  };
-
-  return (
-    <View style={styles.loopSliderContainer}>
-      <View style={styles.loopSliderHeader}>
-        <Text style={styles.loopSliderTitle}>Loop: {formatTime(startSliderValue)} - {formatTime(endSliderValue)}</Text>
-        <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
-          <Text style={styles.buttonText}>Reset</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.slidersContainer}>
-        <View style={styles.sliderRow}>
-          <Text style={styles.sliderLabel}>Start</Text>
-          <Slider
-            style={styles.rangeSlider}
-            minimumValue={0}
-            maximumValue={duration}
-            value={startSliderValue}
-            onValueChange={handleStartChange}
-            minimumTrackTintColor="#666"
-            maximumTrackTintColor="#007AFF"
-            thumbTintColor="#007AFF"
-          />
-        </View>
-        <View style={styles.sliderRow}>
-          <Text style={styles.sliderLabel}>End</Text>
-          <Slider
-            style={styles.rangeSlider}
-            minimumValue={0}
-            maximumValue={duration}
-            value={endSliderValue}
-            onValueChange={handleEndChange}
-            minimumTrackTintColor="#007AFF"
-            maximumTrackTintColor="#666"
-            thumbTintColor="#007AFF"
-          />
-        </View>
-      </View>
-    </View>
-  );
-};
-
 const Analysis = () => {
   const [primaryVideoUri, setPrimaryVideoUri] = useState<string | null>(null);
   const [secondaryVideoUri, setSecondaryVideoUri] = useState<string | null>(null);
@@ -139,7 +63,6 @@ const Analysis = () => {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isTextMode, setIsTextMode] = useState(false);
   const [isEraserMode, setIsEraserMode] = useState(false);
-  const [showLoopSlider, setShowLoopSlider] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [annotations, setAnnotations] = useState<VideoAnnotation[]>([]);
   const [noteText, setNoteText] = useState('');
@@ -188,15 +111,48 @@ const Analysis = () => {
   };
 
   const [isExporting, setIsExporting] = useState(false);
-  const [loopStartTime, setLoopStartTime] = useState<number>(0);
-  const [loopEndTime, setLoopEndTime] = useState<number | null>(null);
-  const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [loopRange, setLoopRange] = useState([0, 0]);
+  const [isLoopEnabled, setIsLoopEnabled] = useState(false);
 
   useEffect(() => {
-    if (primaryVideoRef.current) {
-      primaryVideoRef.current.setIsLoopingAsync(false);
+    if (primaryVideoRef.current && isLoopEnabled) {
+      const checkAndLoopVideo = async () => {
+        const status = await primaryVideoRef.current?.getStatusAsync();
+        if (status?.isLoaded) {
+          const currentPos = status.positionMillis / 1000;
+          if (currentPos >= loopRange[1]) {
+            await primaryVideoRef.current?.setPositionAsync(loopRange[0] * 1000);
+          }
+        }
+      };
+
+      const interval = setInterval(checkAndLoopVideo, 100);
+      return () => clearInterval(interval);
     }
-  }, [primaryVideoUri]);
+  }, [isLoopEnabled, loopRange]);
+
+  const handleVideoStatus = async (status: AVPlaybackStatus) => {
+    if (status.isLoaded) {
+      setCurrentTime(status.positionMillis / 1000);
+      setIsPlaying(status.isPlaying);
+      
+      if (videoDuration === 0) {
+        const duration = status.durationMillis ? status.durationMillis / 1000 : 0;
+        setVideoDuration(duration);
+        setLoopRange([0, duration]);
+      }
+    }
+  };
+
+  const handleLoopRangeChange = (values: number[]) => {
+    setLoopRange(values);
+    if (primaryVideoRef.current) {
+      if (currentTime < values[0] || currentTime > values[1]) {
+        primaryVideoRef.current.setPositionAsync(values[0] * 1000);
+      }
+    }
+  };
 
   const selectVideo = async (isSecondary: boolean = false) => {
     try {
@@ -211,7 +167,6 @@ const Analysis = () => {
           setSecondaryVideoUri(result.assets[0].uri);
         } else {
           setPrimaryVideoUri(result.assets[0].uri);
-          // Reset annotations and related states when new video is selected
           setAnnotations([]);
           setCurrentTime(0);
           setIsDrawingMode(false);
@@ -277,7 +232,7 @@ const Analysis = () => {
   const handleTimestampPress = async (timestamp: number) => {
     try {
       if (primaryVideoRef.current) {
-        await primaryVideoRef.current.setPositionAsync(timestamp * 1000); // Convert to milliseconds
+        await primaryVideoRef.current.setPositionAsync(timestamp * 1000);
         await primaryVideoRef.current.pauseAsync();
       }
     } catch (error) {
@@ -310,29 +265,18 @@ const Analysis = () => {
     try {
       setIsExporting(true);
 
-      // Request permissions if needed
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please grant permission to save videos to your device.');
         return;
       }
 
-      // Get the current video status to pause it
       if (primaryVideoRef.current) {
         await primaryVideoRef.current.pauseAsync();
       }
 
-      // Create a unique filename
       const timestamp = new Date().getTime();
       const filename = `annotated_video_${timestamp}.mp4`;
-
-      // Save the video with annotations
-      // Note: This is a placeholder for the actual video processing
-      // In a real implementation, we would need to:
-      // 1. Process each frame of the video
-      // 2. Draw annotations on each frame
-      // 3. Combine frames back into a video
-      // 4. Save the final video
       
       Alert.alert(
         'Export Video',
@@ -365,80 +309,6 @@ const Analysis = () => {
     );
   };
 
-  const handleLoopRangeChange = async (start: number, end: number) => {
-    console.log('handleLoopRangeChange called with:', { start, end, currentTime, videoDuration });
-    
-    try {
-      if (primaryVideoRef.current) {
-        if (start === 0 && end === videoDuration) {
-          // Reset to normal playback
-          console.log('Resetting loop to full video');
-          await primaryVideoRef.current.setIsLoopingAsync(true);
-          setLoopStartTime(0);
-          setLoopEndTime(null);
-        } else {
-          // Set custom loop points
-          console.log('Setting new loop points');
-          await primaryVideoRef.current.setIsLoopingAsync(false);
-          setLoopStartTime(start);
-          setLoopEndTime(end);
-          
-          // Seek to start if current position is outside the loop range
-          const status = await primaryVideoRef.current.getStatusAsync();
-          if (status.isLoaded) {
-            const currentPos = status.positionMillis / 1000;
-            if (currentPos < start || currentPos > end) {
-              console.log('Seeking to start position:', start);
-              await primaryVideoRef.current.setPositionAsync(start * 1000);
-            }
-            // Ensure video is playing
-            if (!status.isPlaying) {
-              await primaryVideoRef.current.playAsync();
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error in handleLoopRangeChange:', error);
-    }
-  };
-
-  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (!status.isLoaded) return;
-
-    const newTime = status.positionMillis / 1000;
-    setCurrentTime(newTime);
-    setIsPlaying(status.isPlaying);
-    
-    if (status.durationMillis !== undefined) {
-      setVideoDuration(status.durationMillis / 1000);
-    }
-
-    // Handle custom loop range
-    if (loopEndTime !== null && newTime >= loopEndTime && primaryVideoRef.current) {
-      console.log('Reached loop end, seeking to:', {
-        currentTime: newTime,
-        loopEndTime,
-        loopStartTime
-      });
-      
-      // Use a more reliable way to handle the loop
-      (async () => {
-        try {
-          const videoRef = primaryVideoRef.current;
-          if (videoRef) {
-            await videoRef.setPositionAsync(loopStartTime * 1000);
-            if (status.isPlaying) {
-              await videoRef.playAsync();
-            }
-          }
-        } catch (error) {
-          console.error('Error in loop handling:', error);
-        }
-      })();
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainContainer}>
@@ -462,17 +332,17 @@ const Analysis = () => {
                 style={styles.video}
                 resizeMode={ResizeMode.CONTAIN}
                 useNativeControls={true}
-                isLooping={false}
-                onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-              />
-                <View 
-                  style={[
-                    styles.annotationLayer, 
-                    { 
-                      pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
-                    }
-                  ]}
-                >
+                    isLooping={true}
+                    onPlaybackStatusUpdate={handleVideoStatus}
+                  />
+                  <View 
+                    style={[
+                      styles.annotationLayer, 
+                      { 
+                        pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
+                      }
+                    ]}
+                  >
                 <VideoAnnotationLayer
                   width={videoLayout.width}
                   height={videoLayout.height}
@@ -529,23 +399,9 @@ const Analysis = () => {
         </View>
 
         <View style={[styles.controlsContainer, { height: controlsHeight }]}>
-          {/* Show loop slider only when toggled */}
-          {showLoopSlider && primaryVideoUri && (
-            <VideoLoopSlider
-              duration={videoDuration}
-              loopStartTime={loopStartTime}
-              loopEndTime={loopEndTime}
-              onRangeChange={handleLoopRangeChange}
-              formatTime={formatTime}
-            />
-          )}
-
           {/* Speed Control */}
           <View style={styles.speedControl}>
-            <Text style={styles.speedLabel}>
-              Speed: {formatSpeed(playbackSpeed)}
-              {loopEndTime !== null && ` | Loop: ${formatTime(loopStartTime)}-${formatTime(loopEndTime)}`}
-            </Text>
+            <Text style={styles.speedLabel}>Speed: {formatSpeed(playbackSpeed)}</Text>
             <Slider
               style={styles.speedSlider}
               minimumValue={0.01}
@@ -555,6 +411,37 @@ const Analysis = () => {
               minimumTrackTintColor="#007AFF"
               maximumTrackTintColor="#000000"
               thumbTintColor="#007AFF"
+            />
+          </View>
+
+          {/* Loop Range Control */}
+          <View style={styles.loopControl}>
+            <View style={styles.loopHeaderRow}>
+              <Text style={styles.loopLabel}>Loop Range: {formatTime(loopRange[0])} - {formatTime(loopRange[1])}</Text>
+              <TouchableOpacity
+                style={[styles.loopToggle, isLoopEnabled && styles.loopToggleActive]}
+                onPress={() => setIsLoopEnabled(!isLoopEnabled)}
+              >
+                <Icon 
+                  name={isLoopEnabled ? "repeat" : "repeat-off"} 
+                  size={20} 
+                  color={isLoopEnabled ? '#007AFF' : '#666'} 
+                />
+              </TouchableOpacity>
+            </View>
+            <MultiSlider
+              values={loopRange}
+              min={0}
+              max={videoDuration}
+              step={0.1}
+              sliderLength={Dimensions.get('window').width - 40}
+              onValuesChange={handleLoopRangeChange}
+              allowOverlap={false}
+              snapped
+              containerStyle={styles.multiSliderContainer}
+              selectedStyle={styles.multiSliderSelected}
+              unselectedStyle={styles.multiSliderUnselected}
+              markerStyle={styles.multiSliderMarker}
             />
           </View>
 
@@ -578,45 +465,38 @@ const Analysis = () => {
 
       <View style={styles.toolbar}>
         <TouchableOpacity
-          style={[styles.toolButton, showLoopSlider && styles.activeToolButton]}
-          onPress={() => setShowLoopSlider(!showLoopSlider)}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="repeat" size={24} color={showLoopSlider ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.toolButton, isDrawingMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsDrawingMode(!isDrawingMode);
-            setIsTextMode(false);
-            setIsEraserMode(false);
-          }}
+              onPress={() => {
+                setIsDrawingMode(!isDrawingMode);
+                setIsTextMode(false);
+                setIsEraserMode(false);
+              }}
           disabled={!primaryVideoUri}
         >
           <Icon name="pencil" size={24} color={isDrawingMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toolButton, isTextMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsTextMode(!isTextMode);
-            setIsDrawingMode(false);
-            setIsEraserMode(false);
-          }}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsEraserMode(!isEraserMode);
-            setIsDrawingMode(false);
-            setIsTextMode(false);
-          }}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toolButton, isTextMode && styles.activeToolButton]}
+              onPress={() => {
+                setIsTextMode(!isTextMode);
+                setIsDrawingMode(false);
+                setIsEraserMode(false);
+              }}
+              disabled={!primaryVideoUri}
+            >
+              <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
+              onPress={() => {
+                setIsEraserMode(!isEraserMode);
+                setIsDrawingMode(false);
+                setIsTextMode(false);
+              }}
+              disabled={!primaryVideoUri}
+            >
+              <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+            </TouchableOpacity>
         <TouchableOpacity
           style={styles.toolButton}
           onPress={() => setShowNoteInput(true)}
@@ -905,51 +785,46 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
     zIndex: 10,
-    elevation: 5, // for Android
+    elevation: 5,
   },
-  loopSliderContainer: {
-    padding: 8,
+  loopControl: {
+    padding: 5,
     backgroundColor: '#f5f5f5',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
   },
-  loopSliderHeader: {
+  loopHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 5,
   },
-  loopSliderTitle: {
+  loopLabel: {
     fontSize: 12,
     color: '#333',
   },
-  slidersContainer: {
-    marginTop: 4,
-  },
-  sliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 20,
-    marginVertical: 2,
-  },
-  sliderLabel: {
-    fontSize: 10,
-    color: '#666',
-    width: 30,
-  },
-  rangeSlider: {
-    flex: 1,
-    height: '100%',
-  },
-  resetButton: {
-    backgroundColor: '#f44336',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+  loopToggle: {
+    padding: 4,
     borderRadius: 4,
+    backgroundColor: '#e0e0e0',
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 12,
+  loopToggleActive: {
+    backgroundColor: '#e3f2fd',
+  },
+  multiSliderContainer: {
+    height: 30,
+  },
+  multiSliderSelected: {
+    backgroundColor: '#007AFF',
+  },
+  multiSliderUnselected: {
+    backgroundColor: '#d0d0d0',
+  },
+  multiSliderMarker: {
+    height: 20,
+    width: 20,
+    borderRadius: 10,
+    backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
 });
 

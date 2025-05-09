@@ -55,83 +55,6 @@ interface PinchContext extends Record<string, unknown> {
   startScale: number;
 }
 
-const VideoLoopSlider = ({
-  duration,
-  loopStartTime,
-  loopEndTime,
-  onRangeChange,
-  formatTime,
-}: {
-  duration: number;
-  loopStartTime: number;
-  loopEndTime: number | null;
-  onRangeChange: (start: number, end: number) => void;
-  formatTime: (time: number) => string;
-}) => {
-  const [startSliderValue, setStartSliderValue] = useState(loopStartTime);
-  const [endSliderValue, setEndSliderValue] = useState(loopEndTime || duration);
-
-  useEffect(() => {
-    setStartSliderValue(loopStartTime);
-    setEndSliderValue(loopEndTime || duration);
-  }, [loopStartTime, loopEndTime, duration]);
-
-  const handleStartChange = (value: number) => {
-    const newStart = Math.min(value, endSliderValue - 0.1);
-    setStartSliderValue(newStart);
-    onRangeChange(newStart, endSliderValue);
-  };
-
-  const handleEndChange = (value: number) => {
-    const newEnd = Math.max(value, startSliderValue + 0.1);
-    setEndSliderValue(newEnd);
-    onRangeChange(startSliderValue, newEnd);
-  };
-
-  const handleReset = () => {
-    onRangeChange(0, duration);
-  };
-
-  return (
-    <View style={styles.loopSliderContainer}>
-      <View style={styles.loopSliderHeader}>
-        <Text style={styles.loopSliderTitle}>Loop: {formatTime(startSliderValue)} - {formatTime(endSliderValue)}</Text>
-        <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
-          <Text style={styles.buttonText}>Reset</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.slidersContainer}>
-        <View style={styles.sliderRow}>
-          <Text style={styles.sliderLabel}>Start</Text>
-          <Slider
-            style={styles.rangeSlider}
-            minimumValue={0}
-            maximumValue={duration}
-            value={startSliderValue}
-            onValueChange={handleStartChange}
-            minimumTrackTintColor="#666"
-            maximumTrackTintColor="#007AFF"
-            thumbTintColor="#007AFF"
-          />
-        </View>
-        <View style={styles.sliderRow}>
-          <Text style={styles.sliderLabel}>End</Text>
-          <Slider
-            style={styles.rangeSlider}
-            minimumValue={0}
-            maximumValue={duration}
-            value={endSliderValue}
-            onValueChange={handleEndChange}
-            minimumTrackTintColor="#007AFF"
-            maximumTrackTintColor="#666"
-            thumbTintColor="#007AFF"
-          />
-        </View>
-      </View>
-    </View>
-  );
-};
-
 const Analysis = () => {
   const [primaryVideoUri, setPrimaryVideoUri] = useState<string | null>(null);
   const [secondaryVideoUri, setSecondaryVideoUri] = useState<string | null>(null);
@@ -139,7 +62,6 @@ const Analysis = () => {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isTextMode, setIsTextMode] = useState(false);
   const [isEraserMode, setIsEraserMode] = useState(false);
-  const [showLoopSlider, setShowLoopSlider] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [annotations, setAnnotations] = useState<VideoAnnotation[]>([]);
   const [noteText, setNoteText] = useState('');
@@ -191,12 +113,6 @@ const Analysis = () => {
   const [loopStartTime, setLoopStartTime] = useState<number>(0);
   const [loopEndTime, setLoopEndTime] = useState<number | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(0);
-
-  useEffect(() => {
-    if (primaryVideoRef.current) {
-      primaryVideoRef.current.setIsLoopingAsync(false);
-    }
-  }, [primaryVideoUri]);
 
   const selectVideo = async (isSecondary: boolean = false) => {
     try {
@@ -365,77 +281,21 @@ const Analysis = () => {
     );
   };
 
-  const handleLoopRangeChange = async (start: number, end: number) => {
-    console.log('handleLoopRangeChange called with:', { start, end, currentTime, videoDuration });
-    
-    try {
-      if (primaryVideoRef.current) {
-        if (start === 0 && end === videoDuration) {
-          // Reset to normal playback
-          console.log('Resetting loop to full video');
-          await primaryVideoRef.current.setIsLoopingAsync(true);
-          setLoopStartTime(0);
-          setLoopEndTime(null);
-        } else {
-          // Set custom loop points
-          console.log('Setting new loop points');
-          await primaryVideoRef.current.setIsLoopingAsync(false);
-          setLoopStartTime(start);
-          setLoopEndTime(end);
-          
-          // Seek to start if current position is outside the loop range
-          const status = await primaryVideoRef.current.getStatusAsync();
-          if (status.isLoaded) {
-            const currentPos = status.positionMillis / 1000;
-            if (currentPos < start || currentPos > end) {
-              console.log('Seeking to start position:', start);
-              await primaryVideoRef.current.setPositionAsync(start * 1000);
-            }
-            // Ensure video is playing
-            if (!status.isPlaying) {
-              await primaryVideoRef.current.playAsync();
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error in handleLoopRangeChange:', error);
-    }
+  const handleLoopRangeChange = (start: number, end: number) => {
+    setLoopStartTime(start);
+    setLoopEndTime(end);
   };
 
-  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (!status.isLoaded) return;
-
-    const newTime = status.positionMillis / 1000;
-    setCurrentTime(newTime);
-    setIsPlaying(status.isPlaying);
-    
-    if (status.durationMillis !== undefined) {
+  const handlePlaybackStatusUpdate = (status: any) => {
+    if (status.isLoaded) {
+      setCurrentTime(status.positionMillis / 1000);
+      setIsPlaying(status.isPlaying);
       setVideoDuration(status.durationMillis / 1000);
-    }
 
-    // Handle custom loop range
-    if (loopEndTime !== null && newTime >= loopEndTime && primaryVideoRef.current) {
-      console.log('Reached loop end, seeking to:', {
-        currentTime: newTime,
-        loopEndTime,
-        loopStartTime
-      });
-      
-      // Use a more reliable way to handle the loop
-      (async () => {
-        try {
-          const videoRef = primaryVideoRef.current;
-          if (videoRef) {
-            await videoRef.setPositionAsync(loopStartTime * 1000);
-            if (status.isPlaying) {
-              await videoRef.playAsync();
-            }
-          }
-        } catch (error) {
-          console.error('Error in loop handling:', error);
-        }
-      })();
+      // Handle custom loop range
+      if (loopEndTime !== null && status.positionMillis / 1000 >= loopEndTime) {
+        primaryVideoRef.current?.setPositionAsync(loopStartTime * 1000);
+      }
     }
   };
 
@@ -462,17 +322,17 @@ const Analysis = () => {
                 style={styles.video}
                 resizeMode={ResizeMode.CONTAIN}
                 useNativeControls={true}
-                isLooping={false}
+                isLooping={loopEndTime === null}
                 onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
               />
-                <View 
-                  style={[
-                    styles.annotationLayer, 
-                    { 
-                      pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
-                    }
-                  ]}
-                >
+                  <View 
+                    style={[
+                      styles.annotationLayer, 
+                      { 
+                        pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
+                      }
+                    ]}
+                  >
                 <VideoAnnotationLayer
                   width={videoLayout.width}
                   height={videoLayout.height}
@@ -529,23 +389,9 @@ const Analysis = () => {
         </View>
 
         <View style={[styles.controlsContainer, { height: controlsHeight }]}>
-          {/* Show loop slider only when toggled */}
-          {showLoopSlider && primaryVideoUri && (
-            <VideoLoopSlider
-              duration={videoDuration}
-              loopStartTime={loopStartTime}
-              loopEndTime={loopEndTime}
-              onRangeChange={handleLoopRangeChange}
-              formatTime={formatTime}
-            />
-          )}
-
           {/* Speed Control */}
           <View style={styles.speedControl}>
-            <Text style={styles.speedLabel}>
-              Speed: {formatSpeed(playbackSpeed)}
-              {loopEndTime !== null && ` | Loop: ${formatTime(loopStartTime)}-${formatTime(loopEndTime)}`}
-            </Text>
+            <Text style={styles.speedLabel}>Speed: {formatSpeed(playbackSpeed)}</Text>
             <Slider
               style={styles.speedSlider}
               minimumValue={0.01}
@@ -578,44 +424,37 @@ const Analysis = () => {
 
       <View style={styles.toolbar}>
         <TouchableOpacity
-          style={[styles.toolButton, showLoopSlider && styles.activeToolButton]}
-          onPress={() => setShowLoopSlider(!showLoopSlider)}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="repeat" size={24} color={showLoopSlider ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.toolButton, isDrawingMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsDrawingMode(!isDrawingMode);
-            setIsTextMode(false);
-            setIsEraserMode(false);
-          }}
+              onPress={() => {
+                setIsDrawingMode(!isDrawingMode);
+                setIsTextMode(false);
+                setIsEraserMode(false);
+              }}
           disabled={!primaryVideoUri}
         >
           <Icon name="pencil" size={24} color={isDrawingMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toolButton, isTextMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsTextMode(!isTextMode);
-            setIsDrawingMode(false);
-            setIsEraserMode(false);
-          }}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
-          onPress={() => {
-            setIsEraserMode(!isEraserMode);
-            setIsDrawingMode(false);
-            setIsTextMode(false);
-          }}
-          disabled={!primaryVideoUri}
-        >
-          <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+            <TouchableOpacity
+              style={[styles.toolButton, isTextMode && styles.activeToolButton]}
+              onPress={() => {
+                setIsTextMode(!isTextMode);
+                setIsDrawingMode(false);
+                setIsEraserMode(false);
+              }}
+              disabled={!primaryVideoUri}
+            >
+              <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
+              onPress={() => {
+                setIsEraserMode(!isEraserMode);
+                setIsDrawingMode(false);
+                setIsTextMode(false);
+              }}
+              disabled={!primaryVideoUri}
+            >
+              <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.toolButton}
@@ -906,50 +745,6 @@ const styles = StyleSheet.create({
     padding: 8,
     zIndex: 10,
     elevation: 5, // for Android
-  },
-  loopSliderContainer: {
-    padding: 8,
-    backgroundColor: '#f5f5f5',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  loopSliderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  loopSliderTitle: {
-    fontSize: 12,
-    color: '#333',
-  },
-  slidersContainer: {
-    marginTop: 4,
-  },
-  sliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 20,
-    marginVertical: 2,
-  },
-  sliderLabel: {
-    fontSize: 10,
-    color: '#666',
-    width: 30,
-  },
-  rangeSlider: {
-    flex: 1,
-    height: '100%',
-  },
-  resetButton: {
-    backgroundColor: '#f44336',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 12,
   },
 });
 
