@@ -363,12 +363,7 @@ export default function TrainingTracker() {
         {sessions.map((session) => (
           <Card key={session.id} style={styles.sessionCard}>
             <View style={styles.sessionHeader}>
-              <View>
-                <Text style={styles.sessionDate}>{session.date}</Text>
-                <Text style={styles.sessionDay}>
-                  {new Date(session.date).toLocaleDateString('en-US', { weekday: 'long' })}
-                </Text>
-              </View>
+              <Text style={styles.sessionDate}>{session.date}</Text>
               <View style={styles.sessionActions}>
                 <IconButton
                   icon="pencil"
@@ -478,12 +473,6 @@ const styles = StyleSheet.create({
   },
   sessionDate: {
     fontWeight: 'bold',
-    fontSize: 15,
-  },
-  sessionDay: {
-    color: '#666',
-    fontSize: 12,
-    marginTop: 2,
   },
   fab: {
     position: 'absolute',
