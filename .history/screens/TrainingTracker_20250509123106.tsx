@@ -365,7 +365,11 @@ export default function TrainingTracker() {
             <View style={styles.sessionHeader}>
               <View>
                 <Text style={styles.sessionDate}>
-                  {session.date.split('-').reverse().join('-')}
+                  {new Date(session.date).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                  })}
                 </Text>
                 <Text style={styles.sessionDay}>
                   {new Date(session.date).toLocaleDateString('en-US', { weekday: 'long' })}

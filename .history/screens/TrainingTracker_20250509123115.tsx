@@ -364,9 +364,7 @@ export default function TrainingTracker() {
           <Card key={session.id} style={styles.sessionCard}>
             <View style={styles.sessionHeader}>
               <View>
-                <Text style={styles.sessionDate}>
-                  {session.date.split('-').reverse().join('-')}
-                </Text>
+                <Text style={styles.sessionDate}>{session.date}</Text>
                 <Text style={styles.sessionDay}>
                   {new Date(session.date).toLocaleDateString('en-US', { weekday: 'long' })}
                 </Text>
