@@ -65,11 +65,10 @@ const VideoAnnotationLayer: React.FC<Props> = ({
         const clickedAnnotation = annotations.find(annotation => {
           if (annotation.type === 'text') {
             const [point] = annotation.points;
-            // For text, we need to check a larger area since text is rendered from the baseline
             const distance = Math.sqrt(
-              Math.pow(point.x - locationX, 2) + Math.pow((point.y - 20) - locationY, 2)
+              Math.pow(point.x - locationX, 2) + Math.pow(point.y - locationY, 2)
             );
-            return distance < 30; // Increased radius for text to make it easier to select
+            return distance < 20; // 20 pixel radius for text
           } else if (annotation.type === 'line') {
             // Check if click is near any point in the line
             return annotation.points.some(point => {

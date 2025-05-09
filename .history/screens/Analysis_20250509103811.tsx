@@ -78,19 +78,14 @@ const Analysis = () => {
   const lastScale = useRef(1);
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
-      },
-      onMoveShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
-      },
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
         lastScale.current = scale;
       },
       onPanResponderMove: (_, gestureState) => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
         const newScale = lastScale.current * (1 + gestureState.dx / 200);
+        // Limit scale between 0.5 and 3
         const limitedScale = Math.min(Math.max(newScale, 0.5), 3);
         setScale(limitedScale);
       },
@@ -220,7 +215,7 @@ const Analysis = () => {
               >
                 <View 
                   style={[styles.videoContainer, videoStyle]}
-                  {...(!isDrawingMode && !isTextMode && !isEraserMode ? panResponder.panHandlers : {})}
+                  {...panResponder.panHandlers}
                 >
                   <Video
                     ref={primaryVideoRef}
@@ -236,27 +231,20 @@ const Analysis = () => {
                       }
                     }}
                   />
-                  <View 
-                    style={[
-                      styles.annotationLayer, 
-                      { 
-                        pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
-                      }
-                    ]}
-                  >
-                    <VideoAnnotationLayer
-                      width={videoLayout.width}
-                      height={videoLayout.height}
-                      currentTime={currentTime}
-                      annotations={annotations}
-                      onAddAnnotation={handleAddAnnotation}
-                      onRemoveAnnotation={handleRemoveAnnotation}
-                      isDrawingMode={isDrawingMode}
-                      isTextMode={isTextMode}
-                      isEraserMode={isEraserMode}
-                      onAddTextAnnotation={handleAddTextAnnotation}
-                    />
-                  </View>
+                </View>
+                <View style={[styles.annotationLayer, { pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none' }]}>
+                  <VideoAnnotationLayer
+                    width={videoLayout.width}
+                    height={videoLayout.height}
+                    currentTime={currentTime}
+                    annotations={annotations}
+                    onAddAnnotation={handleAddAnnotation}
+                    onRemoveAnnotation={handleRemoveAnnotation}
+                    isDrawingMode={isDrawingMode}
+                    isTextMode={isTextMode}
+                    isEraserMode={isEraserMode}
+                    onAddTextAnnotation={handleAddTextAnnotation}
+                  />
                 </View>
               </View>
             ) : (

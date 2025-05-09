@@ -10,7 +10,6 @@ import {
   Modal,
   PermissionsAndroid,
   Platform,
-  PanResponder,
 } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import Slider from '@react-native-community/slider';
@@ -18,6 +17,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text as PaperText, Button, Card } from 'react-native-paper';
+import { GestureHandlerRootView, PinchGestureHandler, State } from 'react-native-gesture-handler';
+import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import VideoAnnotationLayer from '../components/VideoAnnotationLayer';
 import VideoWorkingArea from '../components/VideoWorkingArea';
 
@@ -49,10 +50,6 @@ interface VideoLoad {
   };
 }
 
-interface PinchContext extends Record<string, unknown> {
-  startScale: number;
-}
-
 const Analysis = () => {
   const [primaryVideoUri, setPrimaryVideoUri] = useState<string | null>(null);
   const [secondaryVideoUri, setSecondaryVideoUri] = useState<string | null>(null);
@@ -74,37 +71,34 @@ const Analysis = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [scale, setScale] = useState(1);
-  const lastScale = useRef(1);
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
-      },
-      onMoveShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
-      },
-      onPanResponderGrant: () => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
-        lastScale.current = scale;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
-        const newScale = lastScale.current * (1 + gestureState.dx / 200);
-        const limitedScale = Math.min(Math.max(newScale, 0.5), 3);
-        setScale(limitedScale);
-      },
-    })
-  ).current;
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const pinchRef = useRef(null);
 
   const primaryVideoRef = useRef<Video>(null);
   const secondaryVideoRef = useRef<Video>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const videoHeight = isSideBySide ? screenHeight * 0.4 : screenHeight * 0.6;
 
-  const videoStyle = {
-    transform: [{ scale }],
-  };
+  const pinchGestureHandler = useAnimatedGestureHandler({
+    onStart: (_, ctx: any) => {
+      ctx.startScale = scale.value;
+    },
+    onActive: (event, ctx) => {
+      const newScale = ctx.startScale * event.scale;
+      // Limit the scale between 0.5 and 3
+      scale.value = Math.min(Math.max(newScale, 0.5), 3);
+    },
+    onEnd: () => {
+      savedScale.value = scale.value;
+    },
+  });
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
 
   const selectVideo = async (isSecondary: boolean = false) => {
     try {
@@ -218,45 +212,42 @@ const Analysis = () => {
                   setVideoLayout({ width, height });
                 }}
               >
-                <View 
-                  style={[styles.videoContainer, videoStyle]}
-                  {...(!isDrawingMode && !isTextMode && !isEraserMode ? panResponder.panHandlers : {})}
-                >
-                  <Video
-                    ref={primaryVideoRef}
-                    source={{ uri: primaryVideoUri }}
-                    style={styles.video}
-                    resizeMode={ResizeMode.CONTAIN}
-                    useNativeControls={true}
-                    isLooping={true}
-                    onPlaybackStatusUpdate={(status) => {
-                      if (status.isLoaded) {
-                        setCurrentTime(status.positionMillis / 1000);
-                        setIsPlaying(status.isPlaying);
-                      }
-                    }}
-                  />
-                  <View 
-                    style={[
-                      styles.annotationLayer, 
-                      { 
-                        pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
-                      }
-                    ]}
+                <GestureHandlerRootView style={styles.gestureContainer}>
+                  <PinchGestureHandler
+                    ref={pinchRef}
+                    onGestureEvent={pinchGestureHandler}
                   >
-                    <VideoAnnotationLayer
-                      width={videoLayout.width}
-                      height={videoLayout.height}
-                      currentTime={currentTime}
-                      annotations={annotations}
-                      onAddAnnotation={handleAddAnnotation}
-                      onRemoveAnnotation={handleRemoveAnnotation}
-                      isDrawingMode={isDrawingMode}
-                      isTextMode={isTextMode}
-                      isEraserMode={isEraserMode}
-                      onAddTextAnnotation={handleAddTextAnnotation}
-                    />
-                  </View>
+                    <Animated.View style={[styles.videoContainer, animatedStyle]}>
+                      <Video
+                        ref={primaryVideoRef}
+                        source={{ uri: primaryVideoUri }}
+                        style={styles.video}
+                        resizeMode={ResizeMode.CONTAIN}
+                        useNativeControls={true}
+                        isLooping={true}
+                        onPlaybackStatusUpdate={(status) => {
+                          if (status.isLoaded) {
+                            setCurrentTime(status.positionMillis / 1000);
+                            setIsPlaying(status.isPlaying);
+                          }
+                        }}
+                      />
+                    </Animated.View>
+                  </PinchGestureHandler>
+                </GestureHandlerRootView>
+                <View style={[styles.annotationLayer, { pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none' }]}>
+                  <VideoAnnotationLayer
+                    width={videoLayout.width}
+                    height={videoLayout.height}
+                    currentTime={currentTime}
+                    annotations={annotations}
+                    onAddAnnotation={handleAddAnnotation}
+                    onRemoveAnnotation={handleRemoveAnnotation}
+                    isDrawingMode={isDrawingMode}
+                    isTextMode={isTextMode}
+                    isEraserMode={isEraserMode}
+                    onAddTextAnnotation={handleAddTextAnnotation}
+                  />
                 </View>
               </View>
             ) : (

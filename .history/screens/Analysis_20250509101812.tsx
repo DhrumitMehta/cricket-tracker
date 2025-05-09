@@ -10,7 +10,6 @@ import {
   Modal,
   PermissionsAndroid,
   Platform,
-  PanResponder,
 } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import Slider from '@react-native-community/slider';
@@ -29,10 +28,9 @@ interface Note {
 
 interface VideoAnnotation {
   id: string;
-  type: 'line' | 'circle' | 'text';
+  type: 'line' | 'circle';
   points: { x: number; y: number }[];
   timestamp: number;
-  text?: string;
 }
 
 interface VideoProgress {
@@ -49,62 +47,26 @@ interface VideoLoad {
   };
 }
 
-interface PinchContext extends Record<string, unknown> {
-  startScale: number;
-}
-
 const Analysis = () => {
   const [primaryVideoUri, setPrimaryVideoUri] = useState<string | null>(null);
   const [secondaryVideoUri, setSecondaryVideoUri] = useState<string | null>(null);
   const [isSideBySide, setIsSideBySide] = useState(false);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
-  const [isTextMode, setIsTextMode] = useState(false);
-  const [isEraserMode, setIsEraserMode] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [annotations, setAnnotations] = useState<VideoAnnotation[]>([]);
   const [noteText, setNoteText] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
-  const [textAnnotation, setTextAnnotation] = useState<string>('');
-  const [showTextInput, setShowTextInput] = useState(false);
-  const [textPosition, setTextPosition] = useState<{ x: number; y: number } | null>(null);
   const [videoLayout, setVideoLayout] = useState({
     width: 0,
     height: 0,
   });
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [scale, setScale] = useState(1);
-  const lastScale = useRef(1);
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
-      },
-      onMoveShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
-      },
-      onPanResponderGrant: () => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
-        lastScale.current = scale;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
-        const newScale = lastScale.current * (1 + gestureState.dx / 200);
-        const limitedScale = Math.min(Math.max(newScale, 0.5), 3);
-        setScale(limitedScale);
-      },
-    })
-  ).current;
 
   const primaryVideoRef = useRef<Video>(null);
   const secondaryVideoRef = useRef<Video>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const videoHeight = isSideBySide ? screenHeight * 0.4 : screenHeight * 0.6;
-
-  const videoStyle = {
-    transform: [{ scale }],
-  };
 
   const selectVideo = async (isSecondary: boolean = false) => {
     try {
@@ -140,33 +102,6 @@ const Analysis = () => {
     }
   };
 
-  const handleAddTextAnnotation = (position: { x: number; y: number }) => {
-    setTextPosition(position);
-    setShowTextInput(true);
-  };
-
-  const handleTextSubmit = async () => {
-    if (textPosition && textAnnotation.trim()) {
-      try {
-        const status = await primaryVideoRef.current?.getStatusAsync();
-        const currentTime = status?.isLoaded ? status.positionMillis / 1000 : 0;
-
-        setAnnotations(prevAnnotations => [...prevAnnotations, {
-          id: Date.now().toString(),
-          type: 'text',
-          points: [textPosition],
-          timestamp: currentTime,
-          text: textAnnotation.trim()
-        }]);
-        setTextAnnotation('');
-        setTextPosition(null);
-        setShowTextInput(false);
-      } catch (error) {
-        console.error('Error adding text annotation:', error);
-      }
-    }
-  };
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -184,27 +119,6 @@ const Analysis = () => {
     }
   };
 
-  const handleRemoveAnnotation = (annotationId: string) => {
-    setAnnotations(prevAnnotations => 
-      prevAnnotations.filter(annotation => annotation.id !== annotationId)
-    );
-  };
-
-  const handleSpeedChange = async (speed: number) => {
-    try {
-      if (primaryVideoRef.current) {
-        await primaryVideoRef.current.setRateAsync(speed, true);
-        setPlaybackSpeed(speed);
-      }
-    } catch (error) {
-      console.error('Error setting playback speed:', error);
-    }
-  };
-
-  const formatSpeed = (speed: number) => {
-    return `${(speed * 100).toFixed(0)}%`;
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainContainer}>
@@ -218,46 +132,30 @@ const Analysis = () => {
                   setVideoLayout({ width, height });
                 }}
               >
-                <View 
-                  style={[styles.videoContainer, videoStyle]}
-                  {...(!isDrawingMode && !isTextMode && !isEraserMode ? panResponder.panHandlers : {})}
-                >
-                  <Video
-                    ref={primaryVideoRef}
-                    source={{ uri: primaryVideoUri }}
-                    style={styles.video}
-                    resizeMode={ResizeMode.CONTAIN}
-                    useNativeControls={true}
-                    isLooping={true}
-                    onPlaybackStatusUpdate={(status) => {
-                      if (status.isLoaded) {
-                        setCurrentTime(status.positionMillis / 1000);
-                        setIsPlaying(status.isPlaying);
-                      }
-                    }}
+                <Video
+                  ref={primaryVideoRef}
+                  source={{ uri: primaryVideoUri }}
+                  style={styles.video}
+                  resizeMode={ResizeMode.CONTAIN}
+                  useNativeControls={true}
+                  isLooping={true}
+                  onPlaybackStatusUpdate={(status) => {
+                    if (status.isLoaded) {
+                      setCurrentTime(status.positionMillis / 1000);
+                      setIsPlaying(status.isPlaying);
+                    }
+                  }}
+                />
+                {isDrawingMode && (
+                  <VideoAnnotationLayer
+                    width={videoLayout.width}
+                    height={videoLayout.height}
+                    currentTime={currentTime}
+                    annotations={annotations}
+                    onAddAnnotation={handleAddAnnotation}
+                    isDrawingMode={isDrawingMode}
                   />
-                  <View 
-                    style={[
-                      styles.annotationLayer, 
-                      { 
-                        pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
-                      }
-                    ]}
-                  >
-                    <VideoAnnotationLayer
-                      width={videoLayout.width}
-                      height={videoLayout.height}
-                      currentTime={currentTime}
-                      annotations={annotations}
-                      onAddAnnotation={handleAddAnnotation}
-                      onRemoveAnnotation={handleRemoveAnnotation}
-                      isDrawingMode={isDrawingMode}
-                      isTextMode={isTextMode}
-                      isEraserMode={isEraserMode}
-                      onAddTextAnnotation={handleAddTextAnnotation}
-                    />
-                  </View>
-                </View>
+                )}
               </View>
             ) : (
               <TouchableOpacity
@@ -293,21 +191,6 @@ const Analysis = () => {
           )}
         </View>
 
-        {/* Speed Control */}
-        <View style={styles.speedControl}>
-          <Text style={styles.speedLabel}>Speed: {formatSpeed(playbackSpeed)}</Text>
-          <Slider
-            style={styles.speedSlider}
-            minimumValue={0.01}
-            maximumValue={2}
-            value={playbackSpeed}
-            onValueChange={handleSpeedChange}
-            minimumTrackTintColor="#007AFF"
-            maximumTrackTintColor="#000000"
-            thumbTintColor="#007AFF"
-          />
-        </View>
-
         {/* Annotation Timestamps Display */}
         <View style={styles.annotationTimestamps}>
           <Text style={styles.timestampsTitle}>Annotation Timestamps:</Text>
@@ -329,36 +212,10 @@ const Analysis = () => {
         <View style={styles.toolbar}>
           <TouchableOpacity
             style={[styles.toolButton, isDrawingMode && styles.activeToolButton]}
-            onPress={() => {
-              setIsDrawingMode(!isDrawingMode);
-              setIsTextMode(false);
-              setIsEraserMode(false);
-            }}
+            onPress={() => setIsDrawingMode(!isDrawingMode)}
             disabled={!primaryVideoUri}
           >
             <Icon name="pencil" size={24} color={isDrawingMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toolButton, isTextMode && styles.activeToolButton]}
-            onPress={() => {
-              setIsTextMode(!isTextMode);
-              setIsDrawingMode(false);
-              setIsEraserMode(false);
-            }}
-            disabled={!primaryVideoUri}
-          >
-            <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
-            onPress={() => {
-              setIsEraserMode(!isEraserMode);
-              setIsDrawingMode(false);
-              setIsTextMode(false);
-            }}
-            disabled={!primaryVideoUri}
-          >
-            <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.toolButton}
@@ -430,50 +287,6 @@ const Analysis = () => {
                   }}
                 >
                   <Text style={styles.saveButtonText}>Save</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Text Annotation Input Modal */}
-        <Modal
-          visible={showTextInput}
-          transparent
-          animationType="slide"
-          onRequestClose={() => {
-            setShowTextInput(false);
-            setTextPosition(null);
-            setTextAnnotation('');
-          }}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Add Text Annotation</Text>
-              <TextInput
-                style={styles.textInput}
-                multiline
-                placeholder="Enter text annotation..."
-                value={textAnnotation}
-                onChangeText={setTextAnnotation}
-                autoFocus
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => {
-                    setShowTextInput(false);
-                    setTextPosition(null);
-                    setTextAnnotation('');
-                  }}
-                >
-                  <Text>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.saveButton]}
-                  onPress={handleTextSubmit}
-                >
-                  <Text style={styles.saveButtonText}>Add</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -644,48 +457,6 @@ const styles = StyleSheet.create({
   },
   timeInfo: {
     marginHorizontal: 10,
-  },
-  annotationLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  textInput: {
-    height: 100,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
-  speedControl: {
-    padding: 10,
-    backgroundColor: '#f5f5f5',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-  },
-  speedLabel: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 5,
-    textAlign: 'center',
-  },
-  speedSlider: {
-    width: '100%',
-    height: 40,
-  },
-  gestureContainer: {
-    flex: 1,
-    overflow: 'hidden',
   },
 });
 

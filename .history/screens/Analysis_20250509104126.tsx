@@ -241,6 +241,7 @@ const Analysis = () => {
                       styles.annotationLayer, 
                       { 
                         pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
+                        transform: [{ scale }]
                       }
                     ]}
                   >

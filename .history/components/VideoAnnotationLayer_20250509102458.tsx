@@ -23,10 +23,8 @@ interface Props {
   currentTime: number;
   annotations: Annotation[];
   onAddAnnotation: (annotation: Annotation) => void;
-  onRemoveAnnotation: (annotationId: string) => void;
   isDrawingMode: boolean;
   isTextMode: boolean;
-  isEraserMode: boolean;
   onAddTextAnnotation: (position: { x: number; y: number }) => void;
 }
 
@@ -36,10 +34,8 @@ const VideoAnnotationLayer: React.FC<Props> = ({
   currentTime,
   annotations,
   onAddAnnotation,
-  onRemoveAnnotation,
   isDrawingMode,
   isTextMode,
-  isEraserMode,
   onAddTextAnnotation,
 }) => {
   const [currentDrawing, setCurrentDrawing] = useState<{
@@ -48,49 +44,15 @@ const VideoAnnotationLayer: React.FC<Props> = ({
   } | null>(null);
 
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => isDrawingMode || isTextMode || isEraserMode,
-    onMoveShouldSetPanResponder: () => isDrawingMode || isEraserMode,
+    onStartShouldSetPanResponder: () => isDrawingMode || isTextMode,
+    onMoveShouldSetPanResponder: () => isDrawingMode,
     onPanResponderGrant: (event: GestureResponderEvent) => {
-      if (!isDrawingMode && !isTextMode && !isEraserMode) return;
+      if (!isDrawingMode && !isTextMode) return;
 
       const { locationX, locationY } = event.nativeEvent;
       
       if (isTextMode) {
         onAddTextAnnotation({ x: locationX, y: locationY });
-        return;
-      }
-
-      if (isEraserMode) {
-        // Find and remove the annotation that was clicked
-        const clickedAnnotation = annotations.find(annotation => {
-          if (annotation.type === 'text') {
-            const [point] = annotation.points;
-            // For text, we need to check a larger area since text is rendered from the baseline
-            const distance = Math.sqrt(
-              Math.pow(point.x - locationX, 2) + Math.pow((point.y - 20) - locationY, 2)
-            );
-            return distance < 30; // Increased radius for text to make it easier to select
-          } else if (annotation.type === 'line') {
-            // Check if click is near any point in the line
-            return annotation.points.some(point => {
-              const distance = Math.sqrt(
-                Math.pow(point.x - locationX, 2) + Math.pow(point.y - locationY, 2)
-              );
-              return distance < 10; // 10 pixel radius for lines
-            });
-          } else if (annotation.type === 'circle') {
-            const [center] = annotation.points;
-            const distance = Math.sqrt(
-              Math.pow(center.x - locationX, 2) + Math.pow(center.y - locationY, 2)
-            );
-            return distance < 10; // 10 pixel radius for circles
-          }
-          return false;
-        });
-
-        if (clickedAnnotation) {
-          onRemoveAnnotation(clickedAnnotation.id);
-        }
         return;
       }
 

@@ -76,31 +76,28 @@ const Analysis = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [scale, setScale] = useState(1);
   const lastScale = useRef(1);
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
-      },
-      onMoveShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
-      },
-      onPanResponderGrant: () => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
-        lastScale.current = scale;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
-        const newScale = lastScale.current * (1 + gestureState.dx / 200);
-        const limitedScale = Math.min(Math.max(newScale, 0.5), 3);
-        setScale(limitedScale);
-      },
-    })
-  ).current;
+  const pinchRef = useRef<PinchGestureHandler>(null);
 
   const primaryVideoRef = useRef<Video>(null);
   const secondaryVideoRef = useRef<Video>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const videoHeight = isSideBySide ? screenHeight * 0.4 : screenHeight * 0.6;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        lastScale.current = scale;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const newScale = lastScale.current * (1 + gestureState.dx / 200);
+        // Limit scale between 0.5 and 3
+        const limitedScale = Math.min(Math.max(newScale, 0.5), 3);
+        setScale(limitedScale);
+      },
+    })
+  ).current;
 
   const videoStyle = {
     transform: [{ scale }],
@@ -220,7 +217,7 @@ const Analysis = () => {
               >
                 <View 
                   style={[styles.videoContainer, videoStyle]}
-                  {...(!isDrawingMode && !isTextMode && !isEraserMode ? panResponder.panHandlers : {})}
+                  {...panResponder.panHandlers}
                 >
                   <Video
                     ref={primaryVideoRef}
@@ -236,27 +233,20 @@ const Analysis = () => {
                       }
                     }}
                   />
-                  <View 
-                    style={[
-                      styles.annotationLayer, 
-                      { 
-                        pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
-                      }
-                    ]}
-                  >
-                    <VideoAnnotationLayer
-                      width={videoLayout.width}
-                      height={videoLayout.height}
-                      currentTime={currentTime}
-                      annotations={annotations}
-                      onAddAnnotation={handleAddAnnotation}
-                      onRemoveAnnotation={handleRemoveAnnotation}
-                      isDrawingMode={isDrawingMode}
-                      isTextMode={isTextMode}
-                      isEraserMode={isEraserMode}
-                      onAddTextAnnotation={handleAddTextAnnotation}
-                    />
-                  </View>
+                </View>
+                <View style={[styles.annotationLayer, { pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none' }]}>
+                  <VideoAnnotationLayer
+                    width={videoLayout.width}
+                    height={videoLayout.height}
+                    currentTime={currentTime}
+                    annotations={annotations}
+                    onAddAnnotation={handleAddAnnotation}
+                    onRemoveAnnotation={handleRemoveAnnotation}
+                    isDrawingMode={isDrawingMode}
+                    isTextMode={isTextMode}
+                    isEraserMode={isEraserMode}
+                    onAddTextAnnotation={handleAddTextAnnotation}
+                  />
                 </View>
               </View>
             ) : (
