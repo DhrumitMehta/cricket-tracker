@@ -505,16 +505,6 @@ const styles = StyleSheet.create({
     padding: 5,
     backgroundColor: '#f5f5f5',
   },
-  speedLabel: {
-    fontSize: 12,
-    color: '#333',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  speedSlider: {
-    width: '100%',
-    height: 30,
-  },
   annotationTimestamps: {
     flex: 1,
     padding: 5,

@@ -379,6 +379,23 @@ const Analysis = () => {
           </View>
         </View>
 
+        {/* Notes section */}
+        <ScrollView style={styles.notesContainer}>
+          {notes.map((note) => (
+            <TouchableOpacity
+              key={note.id}
+              style={styles.noteItem}
+            >
+              <Text style={styles.noteTimestamp}>
+                {Math.floor(note.timestamp / 60)}:{Math.floor(note.timestamp % 60)
+                  .toString()
+                  .padStart(2, '0')}
+              </Text>
+              <Text style={styles.noteText}>{note.text}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         <Modal
           visible={showNoteInput}
           transparent
@@ -499,62 +516,85 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderTopWidth: 1,
     borderTopColor: '#ddd',
-    flexDirection: 'column',
+    flexDirection: 'row',
+    alignItems: 'stretch',
   },
   speedControl: {
-    padding: 5,
+    width: '30%',
+    padding: 4,
     backgroundColor: '#f5f5f5',
+    borderRightWidth: 1,
+    borderRightColor: '#ddd',
   },
   speedLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#333',
     marginBottom: 2,
     textAlign: 'center',
   },
   speedSlider: {
     width: '100%',
-    height: 30,
+    height: 25,
   },
   annotationTimestamps: {
     flex: 1,
-    padding: 5,
+    padding: 4,
     backgroundColor: '#f5f5f5',
   },
   timestampsTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   timestampsList: {
     flex: 1,
   },
   timestampItem: {
-    paddingVertical: 2,
+    paddingVertical: 1,
     paddingHorizontal: 4,
     borderRadius: 4,
   },
   timestampText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#007AFF',
     textDecorationLine: 'underline',
   },
   toolbar: {
-    flexDirection: 'row',
+    width: '30%',
+    flexDirection: 'column',
     justifyContent: 'center',
-    padding: 5,
+    padding: 4,
     backgroundColor: '#f5f5f5',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-    marginTop: 'auto',
+    borderLeftWidth: 1,
+    borderLeftColor: '#ddd',
   },
   toolButton: {
-    padding: 8,
-    marginHorizontal: 4,
-    borderRadius: 5,
+    padding: 6,
+    marginVertical: 2,
+    borderRadius: 4,
     backgroundColor: '#e0e0e0',
+    alignItems: 'center',
   },
   activeToolButton: {
     backgroundColor: '#007AFF',
+  },
+  notesContainer: {
+    maxHeight: 200,
+    padding: 10,
+    backgroundColor: '#f9f9f9',
+  },
+  noteItem: {
+    flexDirection: 'row',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  noteTimestamp: {
+    marginRight: 10,
+    color: '#666',
+  },
+  noteText: {
+    flex: 1,
   },
   modalContainer: {
     flex: 1,

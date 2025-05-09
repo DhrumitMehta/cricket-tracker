@@ -379,6 +379,23 @@ const Analysis = () => {
           </View>
         </View>
 
+        {/* Notes section */}
+        <ScrollView style={styles.notesContainer}>
+          {notes.map((note) => (
+            <TouchableOpacity
+              key={note.id}
+              style={styles.noteItem}
+            >
+              <Text style={styles.noteTimestamp}>
+                {Math.floor(note.timestamp / 60)}:{Math.floor(note.timestamp % 60)
+                  .toString()
+                  .padStart(2, '0')}
+              </Text>
+              <Text style={styles.noteText}>{note.text}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         <Modal
           visible={showNoteInput}
           transparent
@@ -495,26 +512,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  controlsContainer: {
-    backgroundColor: '#f5f5f5',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-    flexDirection: 'column',
-  },
-  speedControl: {
-    padding: 5,
-    backgroundColor: '#f5f5f5',
-  },
-  speedLabel: {
-    fontSize: 12,
-    color: '#333',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  speedSlider: {
-    width: '100%',
-    height: 30,
-  },
   annotationTimestamps: {
     flex: 1,
     padding: 5,
@@ -555,6 +552,44 @@ const styles = StyleSheet.create({
   },
   activeToolButton: {
     backgroundColor: '#007AFF',
+  },
+  controlsContainer: {
+    backgroundColor: '#f5f5f5',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    flexDirection: 'column',
+  },
+  speedControl: {
+    padding: 5,
+    backgroundColor: '#f5f5f5',
+  },
+  speedLabel: {
+    fontSize: 12,
+    color: '#333',
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  speedSlider: {
+    width: '100%',
+    height: 30,
+  },
+  notesContainer: {
+    maxHeight: 200,
+    padding: 10,
+    backgroundColor: '#f9f9f9',
+  },
+  noteItem: {
+    flexDirection: 'row',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  noteTimestamp: {
+    marginRight: 10,
+    color: '#666',
+  },
+  noteText: {
+    flex: 1,
   },
   modalContainer: {
     flex: 1,

@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text as PaperText, Button, Card } from 'react-native-paper';
 import VideoAnnotationLayer from '../components/VideoAnnotationLayer';
 import VideoWorkingArea from '../components/VideoWorkingArea';
+import { MaterialIcons } from '@expo/vector-icons';
 
 interface Note {
   id: string;
@@ -60,6 +61,7 @@ const Analysis = () => {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isTextMode, setIsTextMode] = useState(false);
   const [isEraserMode, setIsEraserMode] = useState(false);
+  const [isZoomMode, setIsZoomMode] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [annotations, setAnnotations] = useState<VideoAnnotation[]>([]);
   const [noteText, setNoteText] = useState('');
@@ -79,17 +81,17 @@ const Analysis = () => {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
+        return isZoomMode;
       },
       onMoveShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
+        return isZoomMode;
       },
       onPanResponderGrant: () => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
+        if (!isZoomMode) return;
         lastScale.current = scale;
       },
       onPanResponderMove: (_, gestureState) => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
+        if (!isZoomMode) return;
         const newScale = lastScale.current * (1 + gestureState.dx / 200);
         const limitedScale = Math.min(Math.max(newScale, 0.5), 3);
         setScale(limitedScale);
@@ -125,6 +127,13 @@ const Analysis = () => {
     } catch (error) {
       console.error('Error selecting video:', error);
     }
+  };
+
+  const handleToolSelect = (tool: 'draw' | 'text' | 'eraser' | 'zoom' | null) => {
+    setIsDrawingMode(tool === 'draw');
+    setIsTextMode(tool === 'text');
+    setIsEraserMode(tool === 'eraser');
+    setIsZoomMode(tool === 'zoom');
   };
 
   const handleAddAnnotation = async (annotation: VideoAnnotation) => {
@@ -241,7 +250,7 @@ const Analysis = () => {
                     style={[
                       styles.annotationLayer, 
                       { 
-                        pointerEvents: isDrawingMode || isTextMode || isEraserMode ? 'auto' : 'none',
+                        pointerEvents: isDrawingMode || isTextMode || isEraserMode || isZoomMode ? 'auto' : 'none',
                       }
                     ]}
                   >
@@ -255,6 +264,9 @@ const Analysis = () => {
                       isDrawingMode={isDrawingMode}
                       isTextMode={isTextMode}
                       isEraserMode={isEraserMode}
+                      isZoomMode={isZoomMode}
+                      scale={scale}
+                      onScaleChange={setScale}
                       onAddTextAnnotation={handleAddTextAnnotation}
                     />
                   </View>
@@ -331,36 +343,27 @@ const Analysis = () => {
           <View style={styles.toolbar}>
             <TouchableOpacity
               style={[styles.toolButton, isDrawingMode && styles.activeToolButton]}
-              onPress={() => {
-                setIsDrawingMode(!isDrawingMode);
-                setIsTextMode(false);
-                setIsEraserMode(false);
-              }}
-              disabled={!primaryVideoUri}
+              onPress={() => handleToolSelect(isDrawingMode ? null : 'draw')}
             >
-              <Icon name="pencil" size={24} color={isDrawingMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+              <MaterialIcons name="draw" size={24} color={isDrawingMode ? "#fff" : "#000"} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toolButton, isTextMode && styles.activeToolButton]}
-              onPress={() => {
-                setIsTextMode(!isTextMode);
-                setIsDrawingMode(false);
-                setIsEraserMode(false);
-              }}
-              disabled={!primaryVideoUri}
+              onPress={() => handleToolSelect(isTextMode ? null : 'text')}
             >
-              <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+              <MaterialIcons name="text-fields" size={24} color={isTextMode ? "#fff" : "#000"} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
-              onPress={() => {
-                setIsEraserMode(!isEraserMode);
-                setIsDrawingMode(false);
-                setIsTextMode(false);
-              }}
-              disabled={!primaryVideoUri}
+              onPress={() => handleToolSelect(isEraserMode ? null : 'eraser')}
             >
-              <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+              <MaterialIcons name="auto-fix-high" size={24} color={isEraserMode ? "#fff" : "#000"} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toolButton, isZoomMode && styles.activeToolButton]}
+              onPress={() => handleToolSelect(isZoomMode ? null : 'zoom')}
+            >
+              <MaterialIcons name="zoom-in" size={24} color={isZoomMode ? "#fff" : "#000"} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.toolButton}

@@ -101,7 +101,7 @@ const Analysis = () => {
   const secondaryVideoRef = useRef<Video>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const videoHeight = isSideBySide ? screenHeight * 0.8 : screenHeight * 0.8;
-  const controlsHeight = screenHeight * 0.2;
+  const CONTROLS_HEIGHT = 150;
 
   const videoStyle = {
     transform: [{ scale }],
@@ -209,7 +209,7 @@ const Analysis = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainContainer}>
-        <View style={[styles.videoContainer, { height: videoHeight }]}>
+        <View style={[styles.videoContainer, { flex: 1 }]}>
           <View style={styles.videoWrapper}>
             {primaryVideoUri ? (
               <View
@@ -294,7 +294,7 @@ const Analysis = () => {
           )}
         </View>
 
-        <View style={[styles.controlsContainer, { height: controlsHeight }]}>
+        <View style={[styles.controlsContainer, { height: CONTROLS_HEIGHT }]}>
           {/* Speed Control */}
           <View style={styles.speedControl}>
             <Text style={styles.speedLabel}>Speed: {formatSpeed(playbackSpeed)}</Text>
@@ -378,6 +378,23 @@ const Analysis = () => {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Notes section */}
+        <ScrollView style={styles.notesContainer}>
+          {notes.map((note) => (
+            <TouchableOpacity
+              key={note.id}
+              style={styles.noteItem}
+            >
+              <Text style={styles.noteTimestamp}>
+                {Math.floor(note.timestamp / 60)}:{Math.floor(note.timestamp % 60)
+                  .toString()
+                  .padStart(2, '0')}
+              </Text>
+              <Text style={styles.noteText}>{note.text}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         <Modal
           visible={showNoteInput}
@@ -495,35 +512,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  controlsContainer: {
-    backgroundColor: '#f5f5f5',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-    flexDirection: 'column',
-  },
-  speedControl: {
-    padding: 5,
-    backgroundColor: '#f5f5f5',
-  },
-  speedLabel: {
-    fontSize: 12,
-    color: '#333',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  speedSlider: {
-    width: '100%',
-    height: 30,
-  },
   annotationTimestamps: {
-    flex: 1,
+    height: 50,
     padding: 5,
     backgroundColor: '#f5f5f5',
   },
   timestampsTitle: {
     fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   timestampsList: {
     flex: 1,
@@ -541,20 +538,61 @@ const styles = StyleSheet.create({
   toolbar: {
     flexDirection: 'row',
     justifyContent: 'center',
-    padding: 5,
+    alignItems: 'center',
+    paddingVertical: 4,
     backgroundColor: '#f5f5f5',
     borderTopWidth: 1,
     borderTopColor: '#ddd',
-    marginTop: 'auto',
   },
   toolButton: {
     padding: 8,
     marginHorizontal: 4,
     borderRadius: 5,
     backgroundColor: '#e0e0e0',
+    alignItems: 'center',
   },
   activeToolButton: {
     backgroundColor: '#007AFF',
+  },
+  controlsContainer: {
+    backgroundColor: '#f5f5f5',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    justifyContent: 'flex-start',
+  },
+  speedControl: {
+    padding: 5,
+    backgroundColor: '#f5f5f5',
+  },
+  speedLabel: {
+    fontSize: 12,
+    color: '#333',
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  speedSlider: {
+    width: '100%',
+    height: 30,
+  },
+  notesContainer: {
+    maxHeight: 200,
+    padding: 10,
+    backgroundColor: '#f9f9f9',
+  },
+  noteItem: {
+    flexDirection: 'row',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  noteTimestamp: {
+    marginRight: 10,
+    color: '#666',
+  },
+  noteText: {
+    flex: 1,
   },
   modalContainer: {
     flex: 1,

@@ -100,8 +100,7 @@ const Analysis = () => {
   const primaryVideoRef = useRef<Video>(null);
   const secondaryVideoRef = useRef<Video>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-  const videoHeight = isSideBySide ? screenHeight * 0.8 : screenHeight * 0.8;
-  const controlsHeight = screenHeight * 0.2;
+  const videoHeight = isSideBySide ? screenHeight * 0.4 : screenHeight * 0.6;
 
   const videoStyle = {
     transform: [{ scale }],
@@ -294,90 +293,105 @@ const Analysis = () => {
           )}
         </View>
 
-        <View style={[styles.controlsContainer, { height: controlsHeight }]}>
-          {/* Speed Control */}
-          <View style={styles.speedControl}>
-            <Text style={styles.speedLabel}>Speed: {formatSpeed(playbackSpeed)}</Text>
-            <Slider
-              style={styles.speedSlider}
-              minimumValue={0.01}
-              maximumValue={2}
-              value={playbackSpeed}
-              onValueChange={handleSpeedChange}
-              minimumTrackTintColor="#007AFF"
-              maximumTrackTintColor="#000000"
-              thumbTintColor="#007AFF"
-            />
-          </View>
-
-          {/* Annotation Timestamps Display */}
-          <View style={styles.annotationTimestamps}>
-            <Text style={styles.timestampsTitle}>Annotation Timestamps:</Text>
-            <ScrollView style={styles.timestampsList}>
-              {annotations.map((annotation, index) => (
-                <TouchableOpacity
-                  key={annotation.id}
-                  style={styles.timestampItem}
-                  onPress={() => handleTimestampPress(annotation.timestamp)}
-                >
-                  <Text style={styles.timestampText}>
-                    {index + 1}. {formatTime(annotation.timestamp)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <View style={styles.toolbar}>
-            <TouchableOpacity
-              style={[styles.toolButton, isDrawingMode && styles.activeToolButton]}
-              onPress={() => {
-                setIsDrawingMode(!isDrawingMode);
-                setIsTextMode(false);
-                setIsEraserMode(false);
-              }}
-              disabled={!primaryVideoUri}
-            >
-              <Icon name="pencil" size={24} color={isDrawingMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toolButton, isTextMode && styles.activeToolButton]}
-              onPress={() => {
-                setIsTextMode(!isTextMode);
-                setIsDrawingMode(false);
-                setIsEraserMode(false);
-              }}
-              disabled={!primaryVideoUri}
-            >
-              <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
-              onPress={() => {
-                setIsEraserMode(!isEraserMode);
-                setIsDrawingMode(false);
-                setIsTextMode(false);
-              }}
-              disabled={!primaryVideoUri}
-            >
-              <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.toolButton}
-              onPress={() => setShowNoteInput(true)}
-              disabled={!primaryVideoUri}
-            >
-              <Icon name="note-text" size={24} color={primaryVideoUri ? '#000' : '#999'} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toolButton, isSideBySide && styles.activeToolButton]}
-              onPress={() => setIsSideBySide(!isSideBySide)}
-              disabled={!primaryVideoUri}
-            >
-              <Icon name="compare" size={24} color={isSideBySide ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
-            </TouchableOpacity>
-          </View>
+        {/* Speed Control */}
+        <View style={styles.speedControl}>
+          <Text style={styles.speedLabel}>Speed: {formatSpeed(playbackSpeed)}</Text>
+          <Slider
+            style={styles.speedSlider}
+            minimumValue={0.01}
+            maximumValue={2}
+            value={playbackSpeed}
+            onValueChange={handleSpeedChange}
+            minimumTrackTintColor="#007AFF"
+            maximumTrackTintColor="#000000"
+            thumbTintColor="#007AFF"
+          />
         </View>
+
+        {/* Annotation Timestamps Display */}
+        <View style={styles.annotationTimestamps}>
+          <Text style={styles.timestampsTitle}>Annotation Timestamps:</Text>
+          <ScrollView style={styles.timestampsList}>
+            {annotations.map((annotation, index) => (
+              <TouchableOpacity
+                key={annotation.id}
+                style={styles.timestampItem}
+                onPress={() => handleTimestampPress(annotation.timestamp)}
+              >
+                <Text style={styles.timestampText}>
+                  {index + 1}. {formatTime(annotation.timestamp)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.toolbar}>
+          <TouchableOpacity
+            style={[styles.toolButton, isDrawingMode && styles.activeToolButton]}
+            onPress={() => {
+              setIsDrawingMode(!isDrawingMode);
+              setIsTextMode(false);
+              setIsEraserMode(false);
+            }}
+            disabled={!primaryVideoUri}
+          >
+            <Icon name="pencil" size={24} color={isDrawingMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toolButton, isTextMode && styles.activeToolButton]}
+            onPress={() => {
+              setIsTextMode(!isTextMode);
+              setIsDrawingMode(false);
+              setIsEraserMode(false);
+            }}
+            disabled={!primaryVideoUri}
+          >
+            <Icon name="format-text" size={24} color={isTextMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toolButton, isEraserMode && styles.activeToolButton]}
+            onPress={() => {
+              setIsEraserMode(!isEraserMode);
+              setIsDrawingMode(false);
+              setIsTextMode(false);
+            }}
+            disabled={!primaryVideoUri}
+          >
+            <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.toolButton}
+            onPress={() => setShowNoteInput(true)}
+            disabled={!primaryVideoUri}
+          >
+            <Icon name="note-text" size={24} color={primaryVideoUri ? '#000' : '#999'} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toolButton, isSideBySide && styles.activeToolButton]}
+            onPress={() => setIsSideBySide(!isSideBySide)}
+            disabled={!primaryVideoUri}
+          >
+            <Icon name="compare" size={24} color={isSideBySide ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Notes section */}
+        <ScrollView style={styles.notesContainer}>
+          {notes.map((note) => (
+            <TouchableOpacity
+              key={note.id}
+              style={styles.noteItem}
+            >
+              <Text style={styles.noteTimestamp}>
+                {Math.floor(note.timestamp / 60)}:{Math.floor(note.timestamp % 60)
+                  .toString()
+                  .padStart(2, '0')}
+              </Text>
+              <Text style={styles.noteText}>{note.text}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         <Modal
           visible={showNoteInput}
@@ -495,66 +509,92 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  controlsContainer: {
+  annotationTimestamps: {
+    height: 120, // Fixed height for timestamps section
+    padding: 10,
     backgroundColor: '#f5f5f5',
     borderTopWidth: 1,
     borderTopColor: '#ddd',
-    flexDirection: 'column',
-  },
-  speedControl: {
-    padding: 5,
-    backgroundColor: '#f5f5f5',
-  },
-  speedLabel: {
-    fontSize: 12,
-    color: '#333',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  speedSlider: {
-    width: '100%',
-    height: 30,
-  },
-  annotationTimestamps: {
-    flex: 1,
-    padding: 5,
-    backgroundColor: '#f5f5f5',
   },
   timestampsTitle: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   timestampsList: {
     flex: 1,
   },
   timestampItem: {
-    paddingVertical: 2,
-    paddingHorizontal: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 4,
   },
   timestampText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#007AFF',
     textDecorationLine: 'underline',
   },
   toolbar: {
     flexDirection: 'row',
     justifyContent: 'center',
-    padding: 5,
+    padding: 10,
     backgroundColor: '#f5f5f5',
     borderTopWidth: 1,
     borderTopColor: '#ddd',
-    marginTop: 'auto',
   },
   toolButton: {
-    padding: 8,
-    marginHorizontal: 4,
+    padding: 10,
+    marginHorizontal: 5,
     borderRadius: 5,
     backgroundColor: '#e0e0e0',
   },
   activeToolButton: {
     backgroundColor: '#007AFF',
+  },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+  },
+  slider: {
+    flex: 1,
+    marginHorizontal: 10,
+  },
+  speedControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  speedButton: {
+    padding: 8,
+    marginHorizontal: 5,
+    borderRadius: 5,
+    backgroundColor: '#f0f0f0',
+  },
+  activeSpeedButton: {
+    backgroundColor: '#007AFF',
+  },
+  speedButtonText: {
+    fontSize: 12,
+  },
+  notesContainer: {
+    maxHeight: 200,
+    padding: 10,
+    backgroundColor: '#f9f9f9',
+  },
+  noteItem: {
+    flexDirection: 'row',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  noteTimestamp: {
+    marginRight: 10,
+    color: '#666',
+  },
+  noteText: {
+    flex: 1,
   },
   modalContainer: {
     flex: 1,
@@ -626,6 +666,26 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     backgroundColor: '#fff',
+  },
+  speedControl: {
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  speedLabel: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+  speedSlider: {
+    width: '100%',
+    height: 40,
+  },
+  gestureContainer: {
+    flex: 1,
+    overflow: 'hidden',
   },
 });
 

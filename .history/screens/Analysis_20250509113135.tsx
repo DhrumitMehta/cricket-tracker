@@ -60,6 +60,7 @@ const Analysis = () => {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isTextMode, setIsTextMode] = useState(false);
   const [isEraserMode, setIsEraserMode] = useState(false);
+  const [isZoomMode, setIsZoomMode] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [annotations, setAnnotations] = useState<VideoAnnotation[]>([]);
   const [noteText, setNoteText] = useState('');
@@ -79,17 +80,17 @@ const Analysis = () => {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
+        return isZoomMode;
       },
       onMoveShouldSetPanResponder: () => {
-        return !isDrawingMode && !isTextMode && !isEraserMode;
+        return isZoomMode;
       },
       onPanResponderGrant: () => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
+        if (!isZoomMode) return;
         lastScale.current = scale;
       },
       onPanResponderMove: (_, gestureState) => {
-        if (isDrawingMode || isTextMode || isEraserMode) return;
+        if (!isZoomMode) return;
         const newScale = lastScale.current * (1 + gestureState.dx / 200);
         const limitedScale = Math.min(Math.max(newScale, 0.5), 3);
         setScale(limitedScale);
@@ -335,6 +336,7 @@ const Analysis = () => {
                 setIsDrawingMode(!isDrawingMode);
                 setIsTextMode(false);
                 setIsEraserMode(false);
+                setIsZoomMode(false);
               }}
               disabled={!primaryVideoUri}
             >
@@ -346,6 +348,7 @@ const Analysis = () => {
                 setIsTextMode(!isTextMode);
                 setIsDrawingMode(false);
                 setIsEraserMode(false);
+                setIsZoomMode(false);
               }}
               disabled={!primaryVideoUri}
             >
@@ -357,10 +360,23 @@ const Analysis = () => {
                 setIsEraserMode(!isEraserMode);
                 setIsDrawingMode(false);
                 setIsTextMode(false);
+                setIsZoomMode(false);
               }}
               disabled={!primaryVideoUri}
             >
               <Icon name="eraser" size={24} color={isEraserMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toolButton, isZoomMode && styles.activeToolButton]}
+              onPress={() => {
+                setIsZoomMode(!isZoomMode);
+                setIsDrawingMode(false);
+                setIsTextMode(false);
+                setIsEraserMode(false);
+              }}
+              disabled={!primaryVideoUri}
+            >
+              <Icon name="magnify" size={24} color={isZoomMode ? '#fff' : primaryVideoUri ? '#000' : '#999'} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.toolButton}
