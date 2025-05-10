@@ -12,14 +12,12 @@ import {
   Platform,
   PanResponder,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text as PaperText, Button, Card } from 'react-native-paper';
 import VideoAnnotationLayer from '../components/VideoAnnotationLayer';
@@ -180,7 +178,6 @@ const Analysis = () => {
   const [loopStartTime, setLoopStartTime] = useState<number>(0);
   const [loopEndTime, setLoopEndTime] = useState<number | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(0);
-  const [exportProgress, setExportProgress] = useState(0);
 
   useEffect(() => {
     if (primaryVideoRef.current) {
@@ -303,16 +300,15 @@ const Analysis = () => {
   const handleExportVideo = async () => {
     try {
       setIsExporting(true);
-      setExportProgress(0);
 
-      // Request permissions
-      const permissionStatus = await MediaLibrary.requestPermissionsAsync();
-      if (permissionStatus.status !== 'granted') {
+      // Request permissions if needed
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please grant permission to save videos to your device.');
         return;
       }
 
-      // Get the current video status
+      // Get the current video status to pause it
       if (primaryVideoRef.current) {
         await primaryVideoRef.current.pauseAsync();
       }
@@ -320,79 +316,30 @@ const Analysis = () => {
       // Create a unique filename
       const timestamp = new Date().getTime();
       const filename = `annotated_video_${timestamp}.mp4`;
-      const outputUri = `${FileSystem.cacheDirectory}${filename}`;
 
-      // Get the video duration
-      const videoStatus = await primaryVideoRef.current?.getStatusAsync();
-      if (!videoStatus?.isLoaded || !videoStatus.durationMillis) {
-        throw new Error('Video not loaded or duration not available');
-      }
-
-      const duration = videoStatus.durationMillis;
-      const totalFrames = Math.ceil(duration / 1000 * 30); // Assuming 30fps
-      let processedFrames = 0;
-
-      // Create a video processing function
-      const processVideo = async () => {
-        try {
-          // Here we would normally process each frame and add annotations
-          // For now, we'll just copy the original video as a placeholder
-          const sourceUri = primaryVideoUri;
-          if (!sourceUri) {
-            throw new Error('No source video');
-          }
-
-          // Copy the video file
-          await FileSystem.copyAsync({
-            from: sourceUri,
-            to: outputUri
-          });
-
-          // Simulate progress
-          const progressInterval = setInterval(() => {
-            processedFrames += 1;
-            const progress = (processedFrames / totalFrames) * 100;
-            setExportProgress(Math.min(progress, 100));
-          }, 50);
-
-          // Wait for the copy to complete
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          clearInterval(progressInterval);
-          setExportProgress(100);
-
-          // Save to media library
-          const asset = await MediaLibrary.createAssetAsync(outputUri);
-          await MediaLibrary.createAlbumAsync('Cricketer App', asset, false);
-
-          // Clean up
-          await FileSystem.deleteAsync(outputUri, { idempotent: true });
-
-          Alert.alert(
-            'Export Complete',
-            'Video has been saved to your device.',
-            [{ text: 'OK' }]
-          );
-        } catch (error) {
-          console.error('Error processing video:', error);
-          Alert.alert('Export Failed', 'Failed to process video. Please try again.');
-        } finally {
-          setIsExporting(false);
-          setExportProgress(0);
-        }
-      };
-
-      // Start processing
-      await processVideo();
+      // Save the video with annotations
+      // Note: This is a placeholder for the actual video processing
+      // In a real implementation, we would need to:
+      // 1. Process each frame of the video
+      // 2. Draw annotations on each frame
+      // 3. Combine frames back into a video
+      // 4. Save the final video
+      
+      Alert.alert(
+        'Export Video',
+        'Video export functionality is coming soon! This will allow you to save videos with annotations.',
+        [{ text: 'OK' }]
+      );
 
     } catch (error) {
       console.error('Error exporting video:', error);
       Alert.alert('Export Failed', 'Failed to export video. Please try again.');
+    } finally {
       setIsExporting(false);
-      setExportProgress(0);
     }
   };
 
-  const handleReplaceVideo = (isSecondary: boolean = false) => {
+  const handleReplaceVideo = () => {
     Alert.alert(
       'Replace Video',
       'Do you want to replace the current video? Your annotations will be preserved.',
@@ -403,7 +350,7 @@ const Analysis = () => {
         },
         {
           text: 'Replace',
-          onPress: () => selectVideo(isSecondary)
+          onPress: () => selectVideo(false)
         }
       ]
     );
@@ -576,7 +523,7 @@ const Analysis = () => {
                   </View>
                   <TouchableOpacity
                     style={styles.replaceVideoButton}
-                    onPress={() => handleReplaceVideo(false)}
+                    onPress={handleReplaceVideo}
                   >
                     <Icon name="file-replace" size={24} color="#fff" />
                   </TouchableOpacity>
@@ -614,12 +561,6 @@ const Analysis = () => {
                         isLooping={true}
                       />
                     </View>
-                    <TouchableOpacity
-                      style={styles.replaceVideoButton}
-                      onPress={() => handleReplaceVideo(true)}
-                    >
-                      <Icon name="file-replace" size={24} color="#fff" />
-                    </TouchableOpacity>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -740,18 +681,11 @@ const Analysis = () => {
               onPress={handleExportVideo}
               disabled={!primaryVideoUri || isExporting}
             >
-              {isExporting ? (
-                <View style={styles.exportProgressContainer}>
-                  <ActivityIndicator size="small" color="#666" />
-                  <Text style={styles.exportProgressText}>{Math.round(exportProgress)}%</Text>
-                </View>
-              ) : (
-                <Icon 
-                  name="export" 
-                  size={24} 
-                  color={!primaryVideoUri ? '#999' : '#000'} 
-                />
-              )}
+              <Icon 
+                name={isExporting ? "loading" : "export"} 
+                size={24} 
+                color={!primaryVideoUri ? '#999' : isExporting ? '#666' : '#000'} 
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -1064,15 +998,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontSize: 12,
-  },
-  exportProgressContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  exportProgressText: {
-    fontSize: 10,
-    color: '#666',
-    marginTop: 2,
   },
 });
 

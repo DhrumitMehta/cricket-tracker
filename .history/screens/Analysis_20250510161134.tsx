@@ -306,8 +306,8 @@ const Analysis = () => {
       setExportProgress(0);
 
       // Request permissions
-      const permissionStatus = await MediaLibrary.requestPermissionsAsync();
-      if (permissionStatus.status !== 'granted') {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please grant permission to save videos to your device.');
         return;
       }
@@ -323,12 +323,12 @@ const Analysis = () => {
       const outputUri = `${FileSystem.cacheDirectory}${filename}`;
 
       // Get the video duration
-      const videoStatus = await primaryVideoRef.current?.getStatusAsync();
-      if (!videoStatus?.isLoaded || !videoStatus.durationMillis) {
-        throw new Error('Video not loaded or duration not available');
+      const status = await primaryVideoRef.current?.getStatusAsync();
+      if (!status?.isLoaded) {
+        throw new Error('Video not loaded');
       }
 
-      const duration = videoStatus.durationMillis;
+      const duration = status.durationMillis;
       const totalFrames = Math.ceil(duration / 1000 * 30); // Assuming 30fps
       let processedFrames = 0;
 

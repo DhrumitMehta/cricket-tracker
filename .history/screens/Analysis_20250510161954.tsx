@@ -335,12 +335,27 @@ const Analysis = () => {
       // Create a video processing function
       const processVideo = async () => {
         try {
-          // Here we would normally process each frame and add annotations
-          // For now, we'll just copy the original video as a placeholder
           const sourceUri = primaryVideoUri;
           if (!sourceUri) {
             throw new Error('No source video');
           }
+
+          // For now, we'll save the annotations data alongside the video
+          // In a real implementation, we would use a video processing library
+          // to overlay the annotations on the video frames
+          const annotationsData = {
+            videoUri: sourceUri,
+            annotations: annotations,
+            videoLayout: videoLayout,
+            duration: duration,
+          };
+
+          // Save the annotations data
+          const annotationsUri = `${FileSystem.cacheDirectory}annotations_${timestamp}.json`;
+          await FileSystem.writeAsStringAsync(
+            annotationsUri,
+            JSON.stringify(annotationsData)
+          );
 
           // Copy the video file
           await FileSystem.copyAsync({
@@ -348,28 +363,25 @@ const Analysis = () => {
             to: outputUri
           });
 
-          // Simulate progress
-          const progressInterval = setInterval(() => {
-            processedFrames += 1;
-            const progress = (processedFrames / totalFrames) * 100;
-            setExportProgress(Math.min(progress, 100));
-          }, 50);
-
-          // Wait for the copy to complete
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          clearInterval(progressInterval);
+          // Update progress
+          processedFrames = totalFrames;
           setExportProgress(100);
 
           // Save to media library
           const asset = await MediaLibrary.createAssetAsync(outputUri);
           await MediaLibrary.createAlbumAsync('Cricketer App', asset, false);
 
+          // Save annotations file to the same album
+          const annotationsAsset = await MediaLibrary.createAssetAsync(annotationsUri);
+          await MediaLibrary.createAlbumAsync('Cricketer App', annotationsAsset, false);
+
           // Clean up
           await FileSystem.deleteAsync(outputUri, { idempotent: true });
+          await FileSystem.deleteAsync(annotationsUri, { idempotent: true });
 
           Alert.alert(
             'Export Complete',
-            'Video has been saved to your device.',
+            'Video and annotations have been saved to your device.',
             [{ text: 'OK' }]
           );
         } catch (error) {

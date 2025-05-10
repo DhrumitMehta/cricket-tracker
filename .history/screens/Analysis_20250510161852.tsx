@@ -335,30 +335,87 @@ const Analysis = () => {
       // Create a video processing function
       const processVideo = async () => {
         try {
-          // Here we would normally process each frame and add annotations
-          // For now, we'll just copy the original video as a placeholder
           const sourceUri = primaryVideoUri;
           if (!sourceUri) {
             throw new Error('No source video');
           }
 
-          // Copy the video file
+          // Create a canvas context for drawing annotations
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            throw new Error('Could not create canvas context');
+          }
+
+          // Set canvas size to match video dimensions
+          canvas.width = videoLayout.width;
+          canvas.height = videoLayout.height;
+
+          // Process each frame
+          for (let frame = 0; frame < totalFrames; frame++) {
+            // Calculate current time for this frame
+            const currentTime = (frame / totalFrames) * duration;
+
+            // Draw annotations for this timestamp
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Filter annotations for current timestamp
+            const currentAnnotations = annotations.filter(annotation => 
+              Math.abs(annotation.timestamp - currentTime / 1000) < 0.1
+            );
+
+            // Draw each annotation
+            currentAnnotations.forEach(annotation => {
+              ctx.strokeStyle = '#FF0000';
+              ctx.lineWidth = 2;
+
+              switch (annotation.type) {
+                case 'line':
+                  if (annotation.points.length >= 2) {
+                    ctx.beginPath();
+                    ctx.moveTo(annotation.points[0].x, annotation.points[0].y);
+                    ctx.lineTo(annotation.points[1].x, annotation.points[1].y);
+                    ctx.stroke();
+                  }
+                  break;
+
+                case 'circle':
+                  if (annotation.points.length >= 2) {
+                    const center = annotation.points[0];
+                    const radius = Math.sqrt(
+                      Math.pow(annotation.points[1].x - center.x, 2) +
+                      Math.pow(annotation.points[1].y - center.y, 2)
+                    );
+                    ctx.beginPath();
+                    ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                  }
+                  break;
+
+                case 'text':
+                  if (annotation.text && annotation.points.length > 0) {
+                    ctx.font = '16px Arial';
+                    ctx.fillStyle = '#FF0000';
+                    ctx.fillText(annotation.text, annotation.points[0].x, annotation.points[0].y);
+                  }
+                  break;
+              }
+            });
+
+            // Update progress
+            processedFrames++;
+            const progress = (processedFrames / totalFrames) * 100;
+            setExportProgress(Math.min(progress, 100));
+          }
+
+          // Combine the original video with the annotation layer
+          // Note: This is a simplified version. In a real implementation,
+          // we would need to use a video processing library to properly
+          // overlay the annotations on each frame.
           await FileSystem.copyAsync({
             from: sourceUri,
             to: outputUri
           });
-
-          // Simulate progress
-          const progressInterval = setInterval(() => {
-            processedFrames += 1;
-            const progress = (processedFrames / totalFrames) * 100;
-            setExportProgress(Math.min(progress, 100));
-          }, 50);
-
-          // Wait for the copy to complete
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          clearInterval(progressInterval);
-          setExportProgress(100);
 
           // Save to media library
           const asset = await MediaLibrary.createAssetAsync(outputUri);

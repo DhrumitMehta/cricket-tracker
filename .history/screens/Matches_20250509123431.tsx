@@ -328,8 +328,7 @@ export default function Matches() {
           </View>
         </View>
         <Text style={styles.matchDetails}>
-          {match.match_format === 'Other' ? match.other_format : match.match_format} at {match.venue} vs{' '}
-          <Text style={styles.opponentNameBold}>{match.opponent}</Text>
+          {match.match_format === 'Other' ? match.other_format : match.match_format} at {match.venue} vs <Text style={styles.opponentName}>{match.opponent}</Text>
           {match.competition && ` - ${match.competition}`}
         </Text>
         <Text style={styles.result}>{match.result}</Text>
@@ -1251,9 +1250,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 12,
-  },
-  opponentNameBold: {
-    fontWeight: 'bold',
-    color: '#333',
   },
 }); 

@@ -324,8 +324,8 @@ const Analysis = () => {
 
       // Get the video duration
       const videoStatus = await primaryVideoRef.current?.getStatusAsync();
-      if (!videoStatus?.isLoaded || !videoStatus.durationMillis) {
-        throw new Error('Video not loaded or duration not available');
+      if (!videoStatus?.isLoaded) {
+        throw new Error('Video not loaded');
       }
 
       const duration = videoStatus.durationMillis;

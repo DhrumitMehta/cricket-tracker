@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text as PaperText, Button, Card } from 'react-native-paper';
 import VideoAnnotationLayer from '../components/VideoAnnotationLayer';
 import VideoWorkingArea from '../components/VideoWorkingArea';
+import { VideoProcessingManager } from 'react-native-video-processing';
 
 interface Note {
   id: string;
@@ -335,41 +336,84 @@ const Analysis = () => {
       // Create a video processing function
       const processVideo = async () => {
         try {
-          // Here we would normally process each frame and add annotations
-          // For now, we'll just copy the original video as a placeholder
           const sourceUri = primaryVideoUri;
           if (!sourceUri) {
             throw new Error('No source video');
           }
 
-          // Copy the video file
-          await FileSystem.copyAsync({
-            from: sourceUri,
-            to: outputUri
-          });
+          // Create a temporary directory for frames
+          const framesDir = `${FileSystem.cacheDirectory}frames_${timestamp}/`;
+          await FileSystem.makeDirectoryAsync(framesDir, { intermediates: true });
 
-          // Simulate progress
-          const progressInterval = setInterval(() => {
-            processedFrames += 1;
+          // Extract frames from video
+          const options = {
+            source: sourceUri,
+            outputPath: framesDir,
+            fps: 30,
+            quality: 1,
+          };
+
+          await VideoProcessingManager.extractFrames(options);
+
+          // Process each frame with annotations
+          const frameFiles = await FileSystem.readDirectoryAsync(framesDir);
+          for (let i = 0; i < frameFiles.length; i++) {
+            const frameFile = frameFiles[i];
+            const frameTime = (i / 30) * 1000; // Convert frame number to milliseconds
+
+            // Get annotations for this frame
+            const currentAnnotations = annotations.filter(annotation => 
+              Math.abs(annotation.timestamp * 1000 - frameTime) < 33 // Within 1 frame (33ms at 30fps)
+            );
+
+            if (currentAnnotations.length > 0) {
+              // Create a canvas for drawing annotations
+              const framePath = `${framesDir}${frameFile}`;
+              const frameImage = await FileSystem.readAsStringAsync(framePath, { encoding: FileSystem.EncodingType.Base64 });
+              
+              // Draw annotations on the frame
+              // Note: This is a simplified version. In a real implementation,
+              // we would use a proper image processing library to draw the annotations
+              const processedFrame = await VideoProcessingManager.drawAnnotations({
+                image: frameImage,
+                annotations: currentAnnotations,
+                width: videoLayout.width,
+                height: videoLayout.height,
+              });
+
+              // Save the processed frame
+              await FileSystem.writeAsStringAsync(framePath, processedFrame, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+            }
+
+            // Update progress
+            processedFrames++;
             const progress = (processedFrames / totalFrames) * 100;
             setExportProgress(Math.min(progress, 100));
-          }, 50);
+          }
 
-          // Wait for the copy to complete
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          clearInterval(progressInterval);
-          setExportProgress(100);
+          // Combine frames back into video
+          const videoOptions = {
+            frames: framesDir,
+            outputPath: outputUri,
+            fps: 30,
+            quality: 1,
+          };
+
+          await VideoProcessingManager.combineFrames(videoOptions);
 
           // Save to media library
           const asset = await MediaLibrary.createAssetAsync(outputUri);
           await MediaLibrary.createAlbumAsync('Cricketer App', asset, false);
 
           // Clean up
+          await FileSystem.deleteAsync(framesDir, { idempotent: true });
           await FileSystem.deleteAsync(outputUri, { idempotent: true });
 
           Alert.alert(
             'Export Complete',
-            'Video has been saved to your device.',
+            'Video with annotations has been saved to your device.',
             [{ text: 'OK' }]
           );
         } catch (error) {
