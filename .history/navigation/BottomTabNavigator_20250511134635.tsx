@@ -25,7 +25,7 @@ export default function BottomTabNavigator() {
           } else if (route.name === 'Analysis') {
             iconName = 'video';
           } else if (route.name === 'Study') {
-            iconName = 'brain';
+            iconName = 'book-open-variant';
           }
 
           return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
@@ -64,18 +64,18 @@ export default function BottomTabNavigator() {
         }}
       />
       <Tab.Screen 
-        name="Study" 
-        component={Study}
-        options={{ 
-          title: 'Study',
-          headerShown: false
-        }}
-      />
-      <Tab.Screen 
         name="Analysis" 
         component={Analysis}
         options={{ 
           title: 'Analysis',
+          headerShown: false
+        }}
+      />
+      <Tab.Screen 
+        name="Study" 
+        component={Study}
+        options={{ 
+          title: 'Study',
           headerShown: false
         }}
       />

@@ -48,6 +48,14 @@ export default function BottomTabNavigator() {
         }}
       />
       <Tab.Screen 
+        name="Study" 
+        component={Study}
+        options={{ 
+          title: 'Study',
+          headerShown: false
+        }}
+      />
+      <Tab.Screen 
         name="Matches" 
         component={Matches}
         options={{ 
@@ -60,14 +68,6 @@ export default function BottomTabNavigator() {
         component={Stats}
         options={{ 
           title: 'Stats',
-          headerShown: false
-        }}
-      />
-      <Tab.Screen 
-        name="Study" 
-        component={Study}
-        options={{ 
-          title: 'Study',
           headerShown: false
         }}
       />

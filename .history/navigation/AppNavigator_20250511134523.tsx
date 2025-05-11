@@ -13,6 +13,8 @@ import { supabase } from '../lib/supabase';
 import Stats from '../screens/Stats';
 import Analysis from '../screens/Analysis';
 import Study from '../screens/Study';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -27,8 +29,10 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const Tab = createBottomTabNavigator();
+
 export default function AppNavigator() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -97,9 +101,83 @@ export default function AppNavigator() {
                 title: 'Video Analysis',
               }}
             />
+            <Stack.Screen 
+              name="Study" 
+              component={Study}
+              options={{
+                title: 'Study Notes',
+              }}
+            />
           </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+function TabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#2196F3',
+        tabBarInactiveTintColor: 'gray',
+        tabBarStyle: {
+          backgroundColor: 'white',
+          borderTopWidth: 1,
+          borderTopColor: '#e0e0e0',
+        },
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={Home}
+        options={{
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Matches"
+        component={Matches}
+        options={{
+          tabBarLabel: 'Matches',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="cricket" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Stats"
+        component={Stats}
+        options={{
+          tabBarLabel: 'Stats',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="chart-bar" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Training"
+        component={Training}
+        options={{
+          tabBarLabel: 'Training',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="dumbbell" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={PlayerProfile}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
   );
 } 

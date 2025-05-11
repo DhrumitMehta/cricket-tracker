@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { IconButton } from 'react-native-paper';
 import TrainingTracker from '../screens/TrainingTracker';
 import Matches from '../screens/Matches';
 import Stats from '../screens/Stats';
@@ -25,18 +26,13 @@ export default function BottomTabNavigator() {
           } else if (route.name === 'Analysis') {
             iconName = 'video';
           } else if (route.name === 'Study') {
-            iconName = 'brain';
+            iconName = 'book-open-variant';
           }
 
-          return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
+          return <IconButton icon={iconName} size={size} iconColor={color} />;
         },
         tabBarActiveTintColor: '#2196F3',
         tabBarInactiveTintColor: 'gray',
-        tabBarStyle: {
-          backgroundColor: 'white',
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-        },
       })}
     >
       <Tab.Screen 
@@ -64,18 +60,18 @@ export default function BottomTabNavigator() {
         }}
       />
       <Tab.Screen 
-        name="Study" 
-        component={Study}
-        options={{ 
-          title: 'Study',
-          headerShown: false
-        }}
-      />
-      <Tab.Screen 
         name="Analysis" 
         component={Analysis}
         options={{ 
           title: 'Analysis',
+          headerShown: false
+        }}
+      />
+      <Tab.Screen 
+        name="Study" 
+        component={Study}
+        options={{ 
+          title: 'Study',
           headerShown: false
         }}
       />

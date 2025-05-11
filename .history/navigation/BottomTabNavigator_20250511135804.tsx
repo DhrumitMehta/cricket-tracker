@@ -64,18 +64,18 @@ export default function BottomTabNavigator() {
         }}
       />
       <Tab.Screen 
-        name="Study" 
-        component={Study}
-        options={{ 
-          title: 'Study',
-          headerShown: false
-        }}
-      />
-      <Tab.Screen 
         name="Analysis" 
         component={Analysis}
         options={{ 
           title: 'Analysis',
+          headerShown: false
+        }}
+      />
+      <Tab.Screen 
+        name="Study" 
+        component={Study}
+        options={{ 
+          title: 'Study',
           headerShown: false
         }}
       />
