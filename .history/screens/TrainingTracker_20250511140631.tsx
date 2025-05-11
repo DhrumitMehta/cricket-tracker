@@ -175,7 +175,8 @@ export default function TrainingTracker() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
       <View style={styles.filtersContainer}>
         <View style={styles.filterRow}>
           <View style={styles.filterButtonContainer}>
@@ -387,7 +388,7 @@ export default function TrainingTracker() {
         icon="plus"
         onPress={() => navigation.navigate('AddTrainingSession', {})}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

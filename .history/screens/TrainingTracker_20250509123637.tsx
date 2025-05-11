@@ -175,7 +175,16 @@ export default function TrainingTracker() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Training</Text>
+        <IconButton
+          icon="account"
+          size={24}
+          onPress={() => navigation.navigate('PlayerProfile')}
+        />
+      </View>
       <View style={styles.filtersContainer}>
         <View style={styles.filterRow}>
           <View style={styles.filterButtonContainer}>
@@ -387,7 +396,7 @@ export default function TrainingTracker() {
         icon="plus"
         onPress={() => navigation.navigate('AddTrainingSession', {})}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
