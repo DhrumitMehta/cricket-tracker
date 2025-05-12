@@ -306,11 +306,7 @@ const TrainingDays = () => {
               <View style={styles.dayHeader}>
                 <View>
                   <Text style={styles.dayName}>{day.name}</Text>
-                  <Chip 
-                    mode="outlined" 
-                    style={styles.dayType}
-                    compact={true}
-                  >
+                  <Chip mode="outlined" style={styles.dayType}>
                     {day.type}
                   </Chip>
                 </View>
@@ -476,7 +472,6 @@ const styles = StyleSheet.create({
   },
   dayType: {
     backgroundColor: '#f0f0f0',
-    alignSelf: 'flex-start',
   },
   dayActions: {
     flexDirection: 'row',
@@ -511,7 +506,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   difficultyText: {
-    fontSize: 13,
+    fontSize: 12,
     marginBottom: 4,
     fontStyle: 'italic',
   },

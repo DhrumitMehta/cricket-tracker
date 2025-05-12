@@ -306,11 +306,7 @@ const TrainingDays = () => {
               <View style={styles.dayHeader}>
                 <View>
                   <Text style={styles.dayName}>{day.name}</Text>
-                  <Chip 
-                    mode="outlined" 
-                    style={styles.dayType}
-                    compact={true}
-                  >
+                  <Chip mode="outlined" style={styles.dayType}>
                     {day.type}
                   </Chip>
                 </View>
@@ -334,12 +330,6 @@ const TrainingDays = () => {
                     <Text style={styles.drillNumber}>{index + 1}.</Text>
                     <View style={styles.drillContent}>
                       <Text style={styles.drillName}>{drill.name}</Text>
-                      <Text style={[
-                        styles.difficultyText,
-                        styles[`${drill.difficulty}Difficulty`]
-                      ]}>
-                        [{drill.difficulty.charAt(0).toUpperCase() + drill.difficulty.slice(1)}]
-                      </Text>
                       <Text style={styles.drillDescription}>{drill.description}</Text>
                     </View>
                   </View>
@@ -476,7 +466,6 @@ const styles = StyleSheet.create({
   },
   dayType: {
     backgroundColor: '#f0f0f0',
-    alignSelf: 'flex-start',
   },
   dayActions: {
     flexDirection: 'row',
@@ -508,21 +497,7 @@ const styles = StyleSheet.create({
   drillName: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  difficultyText: {
-    fontSize: 13,
-    marginBottom: 4,
-    fontStyle: 'italic',
-  },
-  beginnerDifficulty: {
-    color: '#2E7D32',
-  },
-  intermediateDifficulty: {
-    color: '#E65100',
-  },
-  advancedDifficulty: {
-    color: '#C62828',
+    marginBottom: 2,
   },
   drillDescription: {
     fontSize: 12,

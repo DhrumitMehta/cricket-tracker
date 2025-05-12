@@ -306,11 +306,7 @@ const TrainingDays = () => {
               <View style={styles.dayHeader}>
                 <View>
                   <Text style={styles.dayName}>{day.name}</Text>
-                  <Chip 
-                    mode="outlined" 
-                    style={styles.dayType}
-                    compact={true}
-                  >
+                  <Chip mode="outlined" style={styles.dayType}>
                     {day.type}
                   </Chip>
                 </View>
@@ -329,19 +325,37 @@ const TrainingDays = () => {
               </View>
               <Text style={styles.drillsTitle}>Drills:</Text>
               <View style={styles.drillsList}>
-                {day.drills.map((drill, index) => (
-                  <View key={drill.id} style={styles.drillItem}>
-                    <Text style={styles.drillNumber}>{index + 1}.</Text>
-                    <View style={styles.drillContent}>
-                      <Text style={styles.drillName}>{drill.name}</Text>
-                      <Text style={[
-                        styles.difficultyText,
-                        styles[`${drill.difficulty}Difficulty`]
-                      ]}>
-                        [{drill.difficulty.charAt(0).toUpperCase() + drill.difficulty.slice(1)}]
-                      </Text>
-                      <Text style={styles.drillDescription}>{drill.description}</Text>
-                    </View>
+                {Object.entries(
+                  day.drills.reduce((acc, drill) => {
+                    if (!acc[drill.category]) {
+                      acc[drill.category] = [];
+                    }
+                    acc[drill.category].push(drill);
+                    return acc;
+                  }, {} as Record<Drill['category'], Drill[]>)
+                ).map(([category, drills]) => (
+                  <View key={category} style={styles.categorySection}>
+                    <Text style={styles.categoryTitle}>
+                      {category.charAt(0).toUpperCase() + category.slice(1)}:
+                    </Text>
+                    {drills.map((drill, index) => (
+                      <View key={drill.id} style={styles.drillItem}>
+                        <Text style={styles.drillNumber}>{index + 1}.</Text>
+                        <View style={styles.drillContent}>
+                          <View style={styles.drillHeader}>
+                            <Text style={styles.drillName}>{drill.name}</Text>
+                            <Chip 
+                              mode="outlined" 
+                              style={styles.difficultyChip}
+                              textStyle={styles.difficultyText}
+                            >
+                              {drill.difficulty}
+                            </Chip>
+                          </View>
+                          <Text style={styles.drillDescription}>{drill.description}</Text>
+                        </View>
+                      </View>
+                    ))}
                   </View>
                 ))}
               </View>
@@ -476,7 +490,6 @@ const styles = StyleSheet.create({
   },
   dayType: {
     backgroundColor: '#f0f0f0',
-    alignSelf: 'flex-start',
   },
   dayActions: {
     flexDirection: 'row',
@@ -491,9 +504,20 @@ const styles = StyleSheet.create({
   drillsList: {
     marginTop: 8,
   },
+  categorySection: {
+    marginBottom: 16,
+  },
+  categoryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+    marginTop: 8,
+  },
   drillItem: {
     flexDirection: 'row',
     marginBottom: 12,
+    paddingLeft: 8,
   },
   drillNumber: {
     fontSize: 14,
@@ -505,24 +529,25 @@ const styles = StyleSheet.create({
   drillContent: {
     flex: 1,
   },
+  drillHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   drillName: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 4,
+    flex: 1,
+  },
+  difficultyChip: {
+    height: 24,
+    backgroundColor: '#f0f0f0',
   },
   difficultyText: {
-    fontSize: 13,
-    marginBottom: 4,
-    fontStyle: 'italic',
-  },
-  beginnerDifficulty: {
-    color: '#2E7D32',
-  },
-  intermediateDifficulty: {
-    color: '#E65100',
-  },
-  advancedDifficulty: {
-    color: '#C62828',
+    fontSize: 12,
+    textTransform: 'capitalize',
   },
   drillDescription: {
     fontSize: 12,

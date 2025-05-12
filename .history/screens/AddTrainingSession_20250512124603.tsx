@@ -30,8 +30,7 @@ export default function AddTrainingSession() {
     date: new Date().toISOString().split('T')[0],
     duration: '',
     focus_area: '',
-    technical_notes: '',
-    tactical_notes: '',
+    notes: '',
   });
 
   useEffect(() => {
@@ -42,8 +41,7 @@ export default function AddTrainingSession() {
         date: session.date,
         duration: session.duration.toString(),
         focus_area: session.focus_area,
-        technical_notes: session.technical_notes || '',
-        tactical_notes: session.tactical_notes || '',
+        notes: session.notes,
       });
       if (session.training_day_id) {
         fetchTrainingDay(session.training_day_id);
@@ -90,8 +88,7 @@ export default function AddTrainingSession() {
         date: newSession.date,
         duration: parseInt(newSession.duration),
         focus_area: newSession.focus_area,
-        technical_notes: newSession.technical_notes,
-        tactical_notes: newSession.tactical_notes,
+        notes: newSession.notes,
         training_day_id: selectedTrainingDay?.id || null,
         user_id: user.id,
       };
@@ -192,17 +189,9 @@ export default function AddTrainingSession() {
         </View>
 
         <TextInput
-          label="Technical Notes"
-          value={newSession.technical_notes}
-          onChangeText={(text) => setNewSession({ ...newSession, technical_notes: text })}
-          multiline
-          style={styles.input}
-        />
-
-        <TextInput
-          label="Tactical Notes"
-          value={newSession.tactical_notes}
-          onChangeText={(text) => setNewSession({ ...newSession, tactical_notes: text })}
+          label="Notes"
+          value={newSession.notes}
+          onChangeText={(text) => setNewSession({ ...newSession, notes: text })}
           multiline
           style={styles.input}
         />

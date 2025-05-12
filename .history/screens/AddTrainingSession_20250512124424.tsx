@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Button, Text, TextInput, Chip } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
 import { Calendar } from 'react-native-calendars';
@@ -30,8 +30,7 @@ export default function AddTrainingSession() {
     date: new Date().toISOString().split('T')[0],
     duration: '',
     focus_area: '',
-    technical_notes: '',
-    tactical_notes: '',
+    notes: '',
   });
 
   useEffect(() => {
@@ -42,8 +41,7 @@ export default function AddTrainingSession() {
         date: session.date,
         duration: session.duration.toString(),
         focus_area: session.focus_area,
-        technical_notes: session.technical_notes || '',
-        tactical_notes: session.tactical_notes || '',
+        notes: session.notes,
       });
       if (session.training_day_id) {
         fetchTrainingDay(session.training_day_id);
@@ -81,41 +79,36 @@ export default function AddTrainingSession() {
   };
 
   const handleSaveSession = async () => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error('No authenticated user');
+    const sessionData = {
+      date: newSession.date,
+      duration: parseInt(newSession.duration),
+      focus_area: newSession.focus_area,
+      notes: newSession.notes,
+      training_day_id: selectedTrainingDay?.id || null,
+    };
 
-      const sessionData = {
-        date: newSession.date,
-        duration: parseInt(newSession.duration),
-        focus_area: newSession.focus_area,
-        technical_notes: newSession.technical_notes,
-        tactical_notes: newSession.tactical_notes,
-        training_day_id: selectedTrainingDay?.id || null,
-        user_id: user.id,
-      };
+    if (isEditing && route.params?.session) {
+      const { error } = await supabase
+        .from('training_sessions')
+        .update(sessionData)
+        .eq('id', route.params.session.id);
 
-      if (isEditing && route.params?.session) {
-        const { error } = await supabase
-          .from('training_sessions')
-          .update(sessionData)
-          .eq('id', route.params.session.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('training_sessions')
-          .insert([sessionData]);
-
-        if (error) throw error;
+      if (error) {
+        console.error('Error updating session:', error);
+        return;
       }
+    } else {
+      const { error } = await supabase
+        .from('training_sessions')
+        .insert([sessionData]);
 
-      navigation.goBack();
-    } catch (error: any) {
-      console.error('Error saving session:', error.message);
-      Alert.alert('Error', 'Failed to save training session');
+      if (error) {
+        console.error('Error adding session:', error);
+        return;
+      }
     }
+
+    navigation.goBack();
   };
 
   return (
@@ -192,17 +185,9 @@ export default function AddTrainingSession() {
         </View>
 
         <TextInput
-          label="Technical Notes"
-          value={newSession.technical_notes}
-          onChangeText={(text) => setNewSession({ ...newSession, technical_notes: text })}
-          multiline
-          style={styles.input}
-        />
-
-        <TextInput
-          label="Tactical Notes"
-          value={newSession.tactical_notes}
-          onChangeText={(text) => setNewSession({ ...newSession, tactical_notes: text })}
+          label="Notes"
+          value={newSession.notes}
+          onChangeText={(text) => setNewSession({ ...newSession, notes: text })}
           multiline
           style={styles.input}
         />

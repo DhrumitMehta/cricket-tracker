@@ -15,8 +15,7 @@ interface TrainingSession {
   date: string;
   duration: number;
   focus_area: string;
-  technical_notes: string;
-  tactical_notes: string;
+  notes: string;
   training_day_id?: string;
   training_day?: {
     name: string;
@@ -67,16 +66,11 @@ export default function TrainingTracker() {
         .from('training_sessions')
         .select(`
           *,
-          training_day:training_days!training_day_id (
-            id,
-            name,
-            type
-          )
+          training_day:training_days(name, type)
         `)
         .order('date', { ascending: false });
 
       if (error) throw error;
-      console.log('Fetched sessions:', JSON.stringify(data, null, 2));
       setSessions(data || []);
     } catch (error: any) {
       console.error('Error fetching sessions:', error.message);
@@ -174,8 +168,7 @@ export default function TrainingTracker() {
             {item.training_day.name} ({item.training_day.type})
           </Chip>
         )}
-        {item.technical_notes && <Text style={styles.notes}>{item.technical_notes}</Text>}
-        {item.tactical_notes && <Text style={styles.notes}>{item.tactical_notes}</Text>}
+        {item.notes && <Text style={styles.notes}>{item.notes}</Text>}
       </Card.Content>
       <Card.Actions>
         <Button onPress={() => handleEditSession(item)}>Edit</Button>
@@ -388,11 +381,6 @@ export default function TrainingTracker() {
                 <Text style={styles.sessionDay}>
                   {new Date(session.date).toLocaleDateString('en-US', { weekday: 'long' })}
                 </Text>
-                {session.training_day && (
-                  <Text style={styles.trainingDayName}>
-                    {session.training_day.name} ({session.training_day.type})
-                  </Text>
-                )}
               </View>
               <View style={styles.sessionActions}>
                 <IconButton
@@ -407,20 +395,9 @@ export default function TrainingTracker() {
                 />
               </View>
             </View>
-            <Text style={styles.sessionDetail}>Duration: {session.duration} minutes</Text>
-            <Text style={styles.sessionDetail}>Focus: {session.focus_area}</Text>
-            {session.technical_notes && (
-              <View style={styles.notesContainer}>
-                <Text style={styles.notesLabel}>Technical Notes:</Text>
-                <Text style={styles.notesText}>{session.technical_notes}</Text>
-              </View>
-            )}
-            {session.tactical_notes && (
-              <View style={styles.notesContainer}>
-                <Text style={styles.notesLabel}>Tactical Notes:</Text>
-                <Text style={styles.notesText}>{session.tactical_notes}</Text>
-              </View>
-            )}
+            <Text>Duration: {session.duration} minutes</Text>
+            <Text>Focus: {session.focus_area}</Text>
+            <Text>Notes: {session.notes}</Text>
           </Card>
         ))}
       </ScrollView>
@@ -579,31 +556,5 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
     marginTop: 2,
-  },
-  trainingDayName: {
-    color: '#2196F3',
-    fontSize: 12,
-    marginTop: 2,
-    fontStyle: 'italic',
-  },
-  sessionDetail: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  notesContainer: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 4,
-  },
-  notesLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#666',
-    marginBottom: 4,
-  },
-  notesText: {
-    fontSize: 14,
-    color: '#333',
   },
 }); 

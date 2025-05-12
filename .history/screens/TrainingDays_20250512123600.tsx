@@ -306,11 +306,7 @@ const TrainingDays = () => {
               <View style={styles.dayHeader}>
                 <View>
                   <Text style={styles.dayName}>{day.name}</Text>
-                  <Chip 
-                    mode="outlined" 
-                    style={styles.dayType}
-                    compact={true}
-                  >
+                  <Chip mode="outlined" style={styles.dayType}>
                     {day.type}
                   </Chip>
                 </View>
@@ -333,13 +329,18 @@ const TrainingDays = () => {
                   <View key={drill.id} style={styles.drillItem}>
                     <Text style={styles.drillNumber}>{index + 1}.</Text>
                     <View style={styles.drillContent}>
-                      <Text style={styles.drillName}>{drill.name}</Text>
-                      <Text style={[
-                        styles.difficultyText,
-                        styles[`${drill.difficulty}Difficulty`]
-                      ]}>
-                        [{drill.difficulty.charAt(0).toUpperCase() + drill.difficulty.slice(1)}]
-                      </Text>
+                      <View style={styles.drillHeader}>
+                        <Text style={styles.drillName}>{drill.name}</Text>
+                        <Chip 
+                          mode="outlined" 
+                          style={[
+                            styles.difficultyChip,
+                            styles[`${drill.difficulty}Difficulty`]
+                          ]}
+                        >
+                          {drill.difficulty.charAt(0).toUpperCase() + drill.difficulty.slice(1)}
+                        </Chip>
+                      </View>
                       <Text style={styles.drillDescription}>{drill.description}</Text>
                     </View>
                   </View>
@@ -476,7 +477,6 @@ const styles = StyleSheet.create({
   },
   dayType: {
     backgroundColor: '#f0f0f0',
-    alignSelf: 'flex-start',
   },
   dayActions: {
     flexDirection: 'row',
@@ -505,24 +505,34 @@ const styles = StyleSheet.create({
   drillContent: {
     flex: 1,
   },
+  drillHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   drillName: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 4,
+    flex: 1,
+    marginRight: 8,
   },
-  difficultyText: {
-    fontSize: 13,
-    marginBottom: 4,
-    fontStyle: 'italic',
+  difficultyChip: {
+    height: 24,
+    minWidth: 90,
+    justifyContent: 'center',
   },
   beginnerDifficulty: {
-    color: '#2E7D32',
+    backgroundColor: '#E8F5E9',
+    borderColor: '#81C784',
   },
   intermediateDifficulty: {
-    color: '#E65100',
+    backgroundColor: '#FFF3E0',
+    borderColor: '#FFB74D',
   },
   advancedDifficulty: {
-    color: '#C62828',
+    backgroundColor: '#FFEBEE',
+    borderColor: '#E57373',
   },
   drillDescription: {
     fontSize: 12,
