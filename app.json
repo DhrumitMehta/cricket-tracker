@@ -38,8 +38,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "d16c4738-4b12-4c9f-9e9b-d1ced2be70ab"
+        "projectId": "48de59cf-18c6-4fa3-a25f-e829317169b9"
       }
-    }
+    },
+    "owner": "dhrumit_mehta"
   }
 }

@@ -13,10 +13,8 @@ config.resolver.extraNodeModules = {
   zlib: require.resolve('browserify-zlib'),
   assert: require.resolve('assert/'),
   events: require.resolve('events/'),
-  net: require.resolve('react-native-tcp'),
   url: require.resolve('url/'),
   fs: false,
-  tls: false,
   '@supabase/supabase-js': require.resolve('@supabase/supabase-js'),
   '@supabase/postgrest-js': require.resolve('@supabase/postgrest-js'),
 };
