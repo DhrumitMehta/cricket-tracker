@@ -23,24 +23,16 @@
       "edgeToEdgeEnabled": true,
       "package": "com.cricketerapp",
       "versionCode": 1,
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECORD_AUDIO"
-      ]
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE", "RECORD_AUDIO"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-video"
-    ],
+    "plugins": ["expo-video"],
     "extra": {
       "eas": {
-        "projectId": "48de59cf-18c6-4fa3-a25f-e829317169b9"
+        "projectId": "448a8d76-0731-4570-9ee0-22d04d8086bf"
       }
-    },
-    "owner": "dhrumit_mehta"
+    }
   }
 }
