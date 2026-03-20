@@ -5,6 +5,8 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   Text,
@@ -17,6 +19,7 @@ import {
   Button,
   Chip,
   IconButton,
+  Searchbar,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -37,7 +40,19 @@ const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
 const Drills = () => {
   const theme = useTheme();
   const [drills, setDrills] = useState<Drill[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const filteredDrills = React.useMemo(() => {
+    if (!searchQuery.trim()) return drills;
+    const q = searchQuery.toLowerCase().trim();
+    return drills.filter(d =>
+      d.name.toLowerCase().includes(q) ||
+      d.category.toLowerCase().includes(q) ||
+      d.difficulty.toLowerCase().includes(q) ||
+      (d.description && d.description.toLowerCase().includes(q))
+    );
+  }, [drills, searchQuery]);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddDrillDialog, setShowAddDrillDialog] = useState(false);
   const [editingDrill, setEditingDrill] = useState<Drill | null>(null);
@@ -195,13 +210,19 @@ const Drills = () => {
 
   return (
     <View style={styles.container}>
+      <Searchbar
+        placeholder="Search drills..."
+        onChangeText={setSearchQuery}
+        value={searchQuery}
+        style={styles.searchBar}
+      />
       <ScrollView
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {drills.map((drill) => (
+        {filteredDrills.map((drill) => (
           <Card key={drill.id} style={styles.drillCard}>
             <Card.Content>
               <View style={styles.drillHeader}>
@@ -263,10 +284,11 @@ const Drills = () => {
             setErrors({});
           }}
         >
-          <Dialog.Title>{editingDrill ? 'Edit Drill' : 'Add New Drill'}</Dialog.Title>
-          <Dialog.Content>
-            <ScrollView>
-              <TextInput
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.dialogKeyboardView} keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
+            <Dialog.Title>{editingDrill ? 'Edit Drill' : 'Add New Drill'}</Dialog.Title>
+            <Dialog.Content>
+              <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.dialogScrollContent}>
+                <TextInput
                 label="Drill Name"
                 value={newDrill.name}
                 onChangeText={(text) => setNewDrill({ ...newDrill, name: text })}
@@ -335,12 +357,13 @@ const Drills = () => {
                 })}
                 style={styles.input}
               />
-            </ScrollView>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowAddDrillDialog(false)}>Cancel</Button>
-            <Button onPress={handleSubmit}>Save</Button>
-          </Dialog.Actions>
+              </ScrollView>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setShowAddDrillDialog(false)}>Cancel</Button>
+              <Button onPress={handleSubmit}>Save</Button>
+            </Dialog.Actions>
+          </KeyboardAvoidingView>
         </Dialog>
       </Portal>
 
@@ -357,6 +380,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
+  },
+  dialogKeyboardView: {
+    maxHeight: '100%',
+  },
+  dialogScrollContent: {
+    paddingBottom: 80,
+  },
+  searchBar: {
+    margin: 16,
+    marginBottom: 8,
   },
   loadingContainer: {
     flex: 1,

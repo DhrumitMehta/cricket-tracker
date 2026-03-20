@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Modal, TouchableOpacity, Alert, RefreshControl, ActivityIndicator, StatusBar } from 'react-native';
-import { Button, Text, FAB, Divider, IconButton, Card, Portal, Dialog, TextInput, Chip } from 'react-native-paper';
+import { Button, Text, FAB, Divider, IconButton, Card, Portal, Dialog, TextInput, Chip, Searchbar } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { AppColors } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
@@ -48,7 +49,39 @@ export default function TrainingTracker() {
     focus_area: '',
     duration: '',
   });
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const filteredSessions = useMemo(() => {
+    let list = sessions;
+    if (filters.date) {
+      list = list.filter(s => s.date.startsWith(filters.date));
+    }
+    if (filters.focus_area) {
+      list = list.filter(s => s.focus_area === filters.focus_area);
+    }
+    if (filters.duration) {
+      const [minStr, maxStr] = filters.duration.split('-');
+      const min = minStr ? parseInt(minStr, 10) : 0;
+      const max = maxStr ? parseInt(maxStr, 10) : undefined;
+      list = list.filter(s => s.duration >= min && (max === undefined || s.duration <= max));
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(s =>
+        s.focus_area?.toLowerCase().includes(q) ||
+        s.date?.toLowerCase().includes(q) ||
+        (s.technical_notes && s.technical_notes.toLowerCase().includes(q)) ||
+        (s.tactical_notes && s.tactical_notes.toLowerCase().includes(q)) ||
+        (s.training_day?.name && s.training_day.name.toLowerCase().includes(q))
+      );
+    }
+    const sorted = [...list].sort((a, b) => {
+      const cmp = a.date.localeCompare(b.date);
+      return sortOrder === 'desc' ? -cmp : cmp;
+    });
+    return sorted;
+  }, [sessions, filters, searchQuery, sortOrder]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -344,6 +377,12 @@ export default function TrainingTracker() {
           </View>
         </View>
         <Text style={styles.filterLabel}>{formatFilterLabel()}</Text>
+        <Searchbar
+          placeholder="Search sessions..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchBar}
+        />
         <View style={styles.sortContainer}>
           <Text style={styles.sortLabel}>Sort by date:</Text>
           <View style={styles.sortButtons}>
@@ -373,12 +412,12 @@ export default function TrainingTracker() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#2196F3']}
-            tintColor="#2196F3"
+            colors={[AppColors.primary]}
+            tintColor={AppColors.primary}
           />
         }
       >
-        {sessions.map((session) => (
+        {filteredSessions.map((session) => (
           <Card key={session.id} style={styles.sessionCard}>
             <View style={styles.sessionHeader}>
               <View>
@@ -491,6 +530,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 8,
+  },
+  searchBar: {
+    marginVertical: 8,
   },
   sessionsContainer: {
     flex: 1,

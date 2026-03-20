@@ -5,6 +5,8 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   Text,
@@ -16,6 +18,7 @@ import {
   Button,
   Chip,
   IconButton,
+  Searchbar,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -43,6 +46,7 @@ const TrainingDays = () => {
   const [trainingDays, setTrainingDays] = useState<TrainingDay[]>([]);
   const [filteredDays, setFilteredDays] = useState<TrainingDay[]>([]);
   const [selectedType, setSelectedType] = useState<TrainingDay['type'] | 'All'>('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [drills, setDrills] = useState<Drill[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,12 +69,19 @@ const TrainingDays = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedType === 'All') {
-      setFilteredDays(trainingDays);
-    } else {
-      setFilteredDays(trainingDays.filter(day => day.type === selectedType));
+    let list = trainingDays;
+    if (selectedType !== 'All') {
+      list = list.filter(day => day.type === selectedType);
     }
-  }, [selectedType, trainingDays]);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(day =>
+        day.name.toLowerCase().includes(q) ||
+        day.type.toLowerCase().includes(q)
+      );
+    }
+    setFilteredDays(list);
+  }, [selectedType, trainingDays, searchQuery]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -293,7 +304,12 @@ const TrainingDays = () => {
           ))}
         </View>
       </View>
-
+      <Searchbar
+        placeholder="Search training days..."
+        onChangeText={setSearchQuery}
+        value={searchQuery}
+        style={styles.searchBar}
+      />
       <ScrollView
         style={styles.scrollView}
         refreshControl={
@@ -364,10 +380,11 @@ const TrainingDays = () => {
             setErrors({});
           }}
         >
-          <Dialog.Title>{editingDay ? 'Edit Training Day' : 'Add New Training Day'}</Dialog.Title>
-          <Dialog.Content>
-            <ScrollView>
-              <TextInput
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.dialogKeyboardView} keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
+            <Dialog.Title>{editingDay ? 'Edit Training Day' : 'Add New Training Day'}</Dialog.Title>
+            <Dialog.Content>
+              <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.dialogScrollContent}>
+                <TextInput
                 label="Training Day Name"
                 value={newDay.name}
                 onChangeText={(text) => setNewDay({ ...newDay, name: text })}
@@ -426,12 +443,13 @@ const TrainingDays = () => {
               {errors.drills && (
                 <Text style={styles.errorText}>{errors.drills}</Text>
               )}
-            </ScrollView>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowAddDialog(false)}>Cancel</Button>
-            <Button onPress={handleSubmit}>Save</Button>
-          </Dialog.Actions>
+              </ScrollView>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setShowAddDialog(false)}>Cancel</Button>
+              <Button onPress={handleSubmit}>Save</Button>
+            </Dialog.Actions>
+          </KeyboardAvoidingView>
         </Dialog>
       </Portal>
 
@@ -567,6 +585,12 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 8,
   },
+  dialogKeyboardView: {
+    maxHeight: '100%',
+  },
+  dialogScrollContent: {
+    paddingBottom: 80,
+  },
   filterContainer: {
     padding: 16,
     backgroundColor: 'white',
@@ -578,6 +602,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
     color: '#333',
+  },
+  searchBar: {
+    marginHorizontal: 16,
+    marginVertical: 8,
   },
   filterChips: {
     flexDirection: 'row',

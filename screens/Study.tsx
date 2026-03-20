@@ -9,6 +9,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   TextInput,
@@ -25,6 +27,7 @@ import {
   Portal,
   Dialog,
   Divider,
+  Searchbar,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -87,12 +90,24 @@ const Study = () => {
   }>({});
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get unique sources from notes
   const uniqueSources = React.useMemo(() => {
     const sources = new Set(notes.map(note => note.source));
     return Array.from(sources).sort();
   }, [notes]);
+
+  const filteredNotes = React.useMemo(() => {
+    if (!searchQuery.trim()) return notes;
+    const q = searchQuery.toLowerCase().trim();
+    return notes.filter(n =>
+      n.content.toLowerCase().includes(q) ||
+      n.source.toLowerCase().includes(q) ||
+      n.category.toLowerCase().includes(q) ||
+      n.type.toLowerCase().includes(q)
+    );
+  }, [notes, searchQuery]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -477,19 +492,24 @@ const Study = () => {
           </View>
         </View>
       </View>
-
+      <Searchbar
+        placeholder="Search notes..."
+        onChangeText={setSearchQuery}
+        value={searchQuery}
+        style={styles.searchBar}
+      />
       <ScrollView 
         style={styles.notesContainer}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#2196F3']}
-            tintColor="#2196F3"
+            colors={['#1565C0']}
+            tintColor="#1565C0"
           />
         }
       >
-        {notes.map((note) => (
+        {filteredNotes.map((note) => (
           <Card key={note.id} style={styles.noteCard}>
             <View style={styles.noteHeader}>
               <View>
@@ -551,9 +571,18 @@ const Study = () => {
             setErrors({});
           }}
         >
-          <Dialog.Title>{editingNote ? 'Edit Note' : 'Add New Note'}</Dialog.Title>
-          <Dialog.Content>
-            <ScrollView>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.dialogKeyboardView}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+          >
+            <Dialog.Title>{editingNote ? 'Edit Note' : 'Add New Note'}</Dialog.Title>
+            <Dialog.Content>
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.dialogScrollContent}
+                showsVerticalScrollIndicator={true}
+              >
               <TextInput
                 label="Source"
                 value={newNote.source}
@@ -637,12 +666,13 @@ const Study = () => {
                 onChangeText={(text) => setNewNote({ ...newNote, link: text })}
                 style={styles.input}
               />
-            </ScrollView>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowAddNoteDialog(false)}>Cancel</Button>
-            <Button onPress={handleSubmit}>Save</Button>
-          </Dialog.Actions>
+              </ScrollView>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setShowAddNoteDialog(false)}>Cancel</Button>
+              <Button onPress={handleSubmit}>Save</Button>
+            </Dialog.Actions>
+          </KeyboardAvoidingView>
         </Dialog>
       </Portal>
 
@@ -727,6 +757,10 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 8,
   },
+  searchBar: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+  },
   sortContainer: {
     marginTop: 8,
     paddingTop: 8,
@@ -810,6 +844,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#2196F3',
+  },
+  dialogKeyboardView: {
+    maxHeight: '100%',
+  },
+  dialogScrollContent: {
+    paddingBottom: 80,
   },
   input: {
     marginBottom: 12,

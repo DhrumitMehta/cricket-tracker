@@ -222,13 +222,10 @@ const Stats = () => {
       }
       
       if (filters.result !== 'All') {
+        const resultFilterNorm = (filters.result || '').toLowerCase().trim();
         filteredMatches = filteredMatches.filter(m => {
-          const result = m.result.toLowerCase();
-          if (filters.result === 'Won') return result.includes('won');
-          if (filters.result === 'Lost') return result.includes('lost');
-          if (filters.result === 'Draw') return result.includes('draw');
-          if (filters.result === 'Tie') return result.includes('tie');
-          return true;
+          const matchResultNorm = (m.result || '').toLowerCase().trim();
+          return matchResultNorm.length > 0 && matchResultNorm.includes(resultFilterNorm);
         });
       }
 
@@ -255,6 +252,17 @@ const Stats = () => {
         .sort((a, b) => b.runs - a.runs);
 
       console.log('Scores of 50 or more:', fiftyPlusScores);
+
+      // If no matches after filtering, set empty stats and return
+      if (filteredMatches.length === 0) {
+        setStats({
+          batting: { matches: 0, innings: 0, runs: 0, balls: 0, average: 0, strikeRate: 0, highest: 0, notOuts: 0, fours: 0, sixes: 0, dots: 0, dotPercentage: 0, boundaryPercentage: 0, ballsPerBoundary: 0, fifties: 0, hundreds: 0, avgPosition: 0, highestMatchId: '' },
+          bowling: { matches: 0, innings: 0, balls: 0, overs: 0, maidens: 0, runs: 0, wickets: 0, average: 0, economy: 0, strikeRate: 0, bestFigures: '0/0', dots: 0, fours: 0, sixes: 0, wides: 0, noBalls: 0, dotPercentage: 0, ballsPerBoundary: 0, ballsPerWide: 0, ballsPerNoBall: 0, boundaryPercentage: 0 },
+          fielding: { matches: 0, infieldCatches: 0, boundaryCatches: 0, directRunouts: 0, indirectRunouts: 0, drops: 0, playerOfMatch: 0, contributionsPerMatch: 0, dropsPerMatch: 0 },
+        });
+        setLoading(false);
+        return;
+      }
 
       // Find the match with the highest score
       const highestScoreMatch = filteredMatches.reduce((highest, current) => {
@@ -404,11 +412,9 @@ const Stats = () => {
       if (filters.venue !== 'All' && match.venue !== filters.venue) return false;
       if (filters.opposition !== 'All' && match.opponent !== filters.opposition) return false;
       if (filters.result !== 'All') {
-        const result = match.result.toLowerCase();
-        if (filters.result === 'Won' && !result.includes('won')) return false;
-        if (filters.result === 'Lost' && !result.includes('lost')) return false;
-        if (filters.result === 'Draw' && !result.includes('draw')) return false;
-        if (filters.result === 'Tie' && !result.includes('tie')) return false;
+        const resultFilterNorm = (filters.result || '').toLowerCase().trim();
+        const matchResultNorm = (match.result || '').toLowerCase().trim();
+        if (matchResultNorm.length === 0 || !matchResultNorm.includes(resultFilterNorm)) return false;
       }
       if (filters.battingPosition !== 'All' && match.batting?.position !== filters.battingPosition) return false;
       if (filters.bowlingPosition !== 'All' && match.bowling?.position !== filters.bowlingPosition) return false;

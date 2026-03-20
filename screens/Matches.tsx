@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator, StatusBar, Alert, RefreshControl, TouchableOpacity } from 'react-native';
-import { Button, Text, Card, FAB, Portal, Dialog, TextInput, IconButton, Switch } from 'react-native-paper';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, ActivityIndicator, StatusBar, Alert, RefreshControl, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { Button, Text, Card, FAB, Portal, Dialog, TextInput, IconButton, Switch, Searchbar, Menu } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -56,6 +56,7 @@ interface Match {
   source: 'manual' | 'cricclubs';
   batting_notes?: string;
   bowling_notes?: string;
+  other_notes?: string;
   dot_percentage: number;
   strike_rate: number;
   boundary_percentage: number;
@@ -65,6 +66,7 @@ interface Match {
   bowling_economy: number;
   bowling_dot_percentage: number;
   bowling_balls_per_boundary: number | null;
+  team_runs?: number;
 }
 
 export default function Matches() {
@@ -102,9 +104,138 @@ export default function Matches() {
     bowling_noballs: 0,
     batting_notes: '',
     bowling_notes: '',
-    competition: ''
+    other_notes: '',
+    competition: '',
+    team_runs: undefined
   });
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
+  const [dropdownVisible, setDropdownVisible] = useState<'opponent' | 'venue' | 'competition' | 'result' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [minRunsFilter, setMinRunsFilter] = useState<string>('');
+  const [minWicketsFilter, setMinWicketsFilter] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'date' | 'fantasy'>('date');
+
+  const matchOptions = useMemo(() => {
+    const opponents = [...new Set(matches.map(m => m.opponent).filter(Boolean))].sort();
+    const venues = [...new Set(matches.map(m => m.venue).filter(Boolean))].sort();
+    const comps = [...new Set(matches.map(m => m.competition).filter(Boolean))].sort();
+    const results = [...new Set(matches.map(m => m.result).filter(Boolean))].sort();
+    return { opponents, venues, comps, results };
+  }, [matches]);
+
+  const getStrikeRatePoints = (sr: number, isODI: boolean): number => {
+    if (isODI) {
+      if (sr < 40) return -15;
+      if (sr < 56) return -10;
+      if (sr < 75) return -5;
+      if (sr < 90) return 0;
+      if (sr < 112) return 5;
+      if (sr < 131) return 10;
+      if (sr < 150) return 15;
+      if (sr < 170) return 20;
+      return 25;
+    }
+    if (sr < 50) return -15;
+    if (sr < 75) return -10;
+    if (sr < 100) return -5;
+    if (sr <= 100) return 0;
+    if (sr < 120) return 5;
+    if (sr < 150) return 10;
+    if (sr < 175) return 15;
+    if (sr < 200) return 20;
+    return 25;
+  };
+
+  const getFantasyPoints = (match: Match): { total: number; batting: number; bowling: number; fielding: number } => {
+    const format = match.match_format || 'T20';
+    const isODI = format === 'ODI';
+    const battingBalls = match.batting?.balls ?? 0;
+    const bowlingBalls = match.bowling?.balls ?? 0;
+
+    let batting = 0;
+    const runs = match.batting?.runs ?? 0;
+    const fours = match.batting?.fours ?? 0;
+    const sixes = match.batting?.sixes ?? 0;
+    const notOut = match.batting?.not_out ?? false;
+    batting += runs;
+    batting += fours * 2;
+    batting += sixes * 4;
+    if (runs >= 100) batting += 50;
+    else if (runs >= 50) batting += 25;
+    if (runs === 0 && !notOut) batting -= 5;
+    if (battingBalls > 10) {
+      const strikeRate = match.strike_rate ?? 0;
+      if (strikeRate > 0) {
+        batting += getStrikeRatePoints(strikeRate, isODI);
+      }
+      const dotBaseline = isODI ? 60 : 40;
+      const dotPct = match.dot_percentage ?? 0;
+      if (dotPct > 0) {
+        batting += Math.round((dotBaseline - dotPct) * 1);
+      }
+      const bpbBaseline = isODI ? 11 : 6;
+      const bpb = match.balls_per_boundary ?? 0;
+      if (bpb > 0) {
+        batting += Math.round((bpbBaseline - bpb) * 10);
+      }
+    }
+
+    let bowling = 0;
+    const wickets = match.bowling?.wickets ?? 0;
+    const runsConceded = match.bowling?.runs ?? 0;
+    const maidens = match.bowling?.maidens ?? 0;
+    bowling += wickets * 25;
+    bowling -= runsConceded;
+    bowling += maidens * 10;
+    if (bowlingBalls > 6) {
+      const economy = match.bowling_economy ?? 0;
+      if (economy > 0) {
+        const econLow = isODI ? 6 : 7;
+        const econHigh = isODI ? 7 : 8;
+        if (economy < econLow) bowling += Math.round((econLow - economy) * 10);
+        else if (economy > econHigh) bowling += Math.round((econHigh - economy) * 10);
+      }
+    }
+
+    let fielding = 0;
+    const infieldCatches = match.fielding?.infield_catches ?? 0;
+    const boundaryCatches = match.fielding?.boundary_catches ?? 0;
+    const directRO = match.fielding?.direct_runouts ?? 0;
+    const indirectRO = match.fielding?.indirect_runouts ?? 0;
+    const drops = match.fielding?.drops ?? 0;
+    fielding += (infieldCatches + boundaryCatches) * 10;
+    fielding += directRO * 15;
+    fielding += indirectRO * 10;
+    fielding -= drops * 10;
+    if (match.fielding?.player_of_match) fielding += 25;
+    return { total: batting + bowling + fielding, batting, bowling, fielding };
+  };
+
+  const filteredMatches = useMemo(() => {
+    let list = matches;
+    const minRuns = minRunsFilter.trim() ? parseInt(minRunsFilter, 10) : 0;
+    if (!isNaN(minRuns) && minRuns > 0) {
+      list = list.filter(m => (m.batting?.runs ?? 0) >= minRuns);
+    }
+    const minWickets = minWicketsFilter.trim() ? parseInt(minWicketsFilter, 10) : 0;
+    if (!isNaN(minWickets) && minWickets > 0) {
+      list = list.filter(m => (m.bowling?.wickets ?? 0) >= minWickets);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(m =>
+        (m.opponent && m.opponent.toLowerCase().includes(q)) ||
+        (m.venue && m.venue.toLowerCase().includes(q)) ||
+        (m.result && m.result.toLowerCase().includes(q)) ||
+        (m.competition && m.competition.toLowerCase().includes(q)) ||
+        (m.date && m.date.toLowerCase().includes(q))
+      );
+    }
+    if (sortBy === 'fantasy') {
+      list = [...list].sort((a, b) => getFantasyPoints(b).total - getFantasyPoints(a).total);
+    }
+    return list;
+  }, [matches, searchQuery, minRunsFilter, minWicketsFilter, sortBy]);
 
   useEffect(() => {
     fetchMatches();
@@ -192,6 +323,8 @@ export default function Matches() {
       source: match.source,
       batting_notes: match.batting_notes,
       bowling_notes: match.bowling_notes,
+      other_notes: match.other_notes,
+      team_runs: match.team_runs,
     });
     setShowAddDialog(true);
   };
@@ -261,7 +394,9 @@ export default function Matches() {
         bowling_noballs: 0,
         batting_notes: '',
         bowling_notes: '',
-        competition: ''
+        other_notes: '',
+        competition: '',
+        team_runs: undefined
       });
       fetchMatches();
     } catch (error) {
@@ -288,26 +423,30 @@ export default function Matches() {
     return `${day}-${month}-${date.getFullYear()}`;
   };
 
-  const renderMatchListItem = (match: Match) => (
-    <TouchableOpacity
-      key={match.id}
-      style={[
-        styles.matchListItem,
-        selectedMatch?.id === match.id && styles.selectedMatchListItem
-      ]}
-      onPress={() => setSelectedMatch(match)}
-    >
-      <Text style={styles.matchListDate}>
-        {formatDate(match.date)}
-      </Text>
-      <Text style={styles.matchListOpponent} numberOfLines={1}>
-        vs <Text style={styles.matchListOpponentName}>{match.opponent}</Text>
-      </Text>
-      <Text style={styles.matchListFormat}>
-        {match.match_format === 'Other' ? match.other_format : match.match_format}
-      </Text>
-    </TouchableOpacity>
-  );
+  const renderMatchListItem = (match: Match) => {
+    const fp = getFantasyPoints(match).total;
+    return (
+      <TouchableOpacity
+        key={match.id}
+        style={[
+          styles.matchListItem,
+          selectedMatch?.id === match.id && styles.selectedMatchListItem
+        ]}
+        onPress={() => setSelectedMatch(match)}
+      >
+        <Text style={styles.matchListDate}>
+          {formatDate(match.date)}
+        </Text>
+        <Text style={styles.matchListOpponent} numberOfLines={1}>
+          vs <Text style={styles.matchListOpponentName}>{match.opponent}</Text>
+        </Text>
+        <Text style={styles.matchListFormat}>
+          {match.match_format === 'Other' ? match.other_format : match.match_format}
+        </Text>
+        <Text style={styles.matchListFantasy}>{fp} pts</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderMatchDetail = (match: Match) => (
     <Card style={styles.detailCard}>
@@ -333,13 +472,38 @@ export default function Matches() {
           {match.competition && ` - ${match.competition}`}
         </Text>
         <Text style={styles.result}>{match.result}</Text>
+
+        {/* Fantasy points / contribution rank */}
+        {(() => {
+          const fp = getFantasyPoints(match);
+          return (
+            <View style={styles.fantasySection}>
+              <Text style={styles.fantasyTitle}>Contribution (Fantasy points)</Text>
+              <Text style={styles.fantasyTotal}>{fp.total} pts</Text>
+              <View style={styles.fantasyBreakdown}>
+                <Text style={styles.fantasyBreakdownText}>Batting: {fp.batting}</Text>
+                <Text style={styles.fantasyBreakdownText}>Bowling: {fp.bowling}</Text>
+                <Text style={styles.fantasyBreakdownText}>Fielding: {fp.fielding}</Text>
+              </View>
+            </View>
+          );
+        })()}
         
         <View style={styles.statsContainer}>
           {/* Batting Stats */}
           <View style={styles.statSection}>
             <Text style={styles.statTitle}>Batting</Text>
             <View style={styles.statContent}>
-              <Text style={styles.statValue}>{match.batting.runs} ({match.batting.balls})</Text>
+              {match.team_runs != null && match.team_runs > 0 ? (
+                <>
+                  <Text style={styles.statValue}>
+                    {match.batting.runs} ({match.batting.balls}) — {((match.batting.runs / match.team_runs) * 100).toFixed(1)}% of team
+                  </Text>
+                  <Text style={styles.runTypeText}>Team total: {match.team_runs}</Text>
+                </>
+              ) : (
+                <Text style={styles.statValue}>{match.batting.runs} ({match.batting.balls})</Text>
+              )}
               <View style={styles.runTypeContainer}>
                 <Text style={styles.runTypeText}>1s: {match.batting.singles}</Text>
                 <Text style={styles.runTypeText}>2s: {match.batting.doubles}</Text>
@@ -412,6 +576,12 @@ export default function Matches() {
             <Text>{match.bowling_notes}</Text>
           </View>
         )}
+        {match.other_notes && (
+          <View style={styles.notesContainer}>
+            <Text style={styles.notesTitle}>Other Notes (Fielding, Captaincy)</Text>
+            <Text>{match.other_notes}</Text>
+          </View>
+        )}
       </Card.Content>
     </Card>
   );
@@ -456,14 +626,25 @@ export default function Matches() {
           bowling_noballs: 0,
           batting_notes: '',
           bowling_notes: '',
-          competition: ''
+        other_notes: '',
+        competition: '',
+        team_runs: undefined
         });
       }}
       style={styles.dialog}
     >
-      <Dialog.Title>{editingMatch ? 'Edit Match' : 'Add New Match'}</Dialog.Title>
-      <Dialog.ScrollArea>
-        <ScrollView contentContainerStyle={styles.dialogContent}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.dialogKeyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      >
+        <Dialog.Title>{editingMatch ? 'Edit Match' : 'Add New Match'}</Dialog.Title>
+        <Dialog.ScrollArea style={styles.dialogScrollArea}>
+          <ScrollView
+            contentContainerStyle={styles.dialogContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
+          >
           <Text style={styles.sectionTitle}>Match Details</Text>
           <Button
             mode="outlined"
@@ -512,28 +693,83 @@ export default function Matches() {
               style={styles.input}
             />
           )}
+          <View style={styles.dropdownInputRow}>
+            <TextInput
+              label="Opponent"
+              value={newMatch.opponent ?? ''}
+              onChangeText={(text) => setNewMatch({ ...newMatch, opponent: text })}
+              style={[styles.input, styles.dropdownTextInput]}
+            />
+            <Menu
+              visible={dropdownVisible === 'opponent'}
+              onDismiss={() => setDropdownVisible(null)}
+              anchor={<IconButton icon="chevron-down" onPress={() => setDropdownVisible('opponent')} />}
+            >
+              {matchOptions.opponents.map((o) => (
+                <Menu.Item key={o} onPress={() => { setNewMatch({ ...newMatch, opponent: o }); setDropdownVisible(null); }} title={o} />
+              ))}
+            </Menu>
+          </View>
+          <View style={styles.dropdownInputRow}>
+            <TextInput
+              label="Venue"
+              value={newMatch.venue ?? ''}
+              onChangeText={(text) => setNewMatch({ ...newMatch, venue: text })}
+              style={[styles.input, styles.dropdownTextInput]}
+            />
+            <Menu
+              visible={dropdownVisible === 'venue'}
+              onDismiss={() => setDropdownVisible(null)}
+              anchor={<IconButton icon="chevron-down" onPress={() => setDropdownVisible('venue')} />}
+            >
+              {matchOptions.venues.map((v) => (
+                <Menu.Item key={v} onPress={() => { setNewMatch({ ...newMatch, venue: v }); setDropdownVisible(null); }} title={v} />
+              ))}
+            </Menu>
+          </View>
+          <View style={styles.dropdownInputRow}>
+            <TextInput
+              label="Competition"
+              value={newMatch.competition ?? ''}
+              onChangeText={(text) => setNewMatch({ ...newMatch, competition: text })}
+              style={[styles.input, styles.dropdownTextInput]}
+            />
+            <Menu
+              visible={dropdownVisible === 'competition'}
+              onDismiss={() => setDropdownVisible(null)}
+              anchor={<IconButton icon="chevron-down" onPress={() => setDropdownVisible('competition')} />}
+            >
+              {matchOptions.comps.map((c) => (
+                <Menu.Item key={c} onPress={() => { setNewMatch({ ...newMatch, competition: c }); setDropdownVisible(null); }} title={c} />
+              ))}
+            </Menu>
+          </View>
+          <View style={styles.dropdownInputRow}>
+            <TextInput
+              label="Result"
+              value={newMatch.result ?? ''}
+              onChangeText={(text) => setNewMatch({ ...newMatch, result: text })}
+              style={[styles.input, styles.dropdownTextInput]}
+            />
+            <Menu
+              visible={dropdownVisible === 'result'}
+              onDismiss={() => setDropdownVisible(null)}
+              anchor={<IconButton icon="chevron-down" onPress={() => setDropdownVisible('result')} />}
+            >
+              {([...matchOptions.results, 'Won', 'Lost', 'Draw', 'Tie', 'No Result'].filter((v, i, a) => a.indexOf(v) === i)).map((r) => (
+                <Menu.Item key={r} onPress={() => { setNewMatch({ ...newMatch, result: r }); setDropdownVisible(null); }} title={r} />
+              ))}
+            </Menu>
+          </View>
           <TextInput
-            label="Opponent"
-            value={newMatch.opponent}
-            onChangeText={(text) => setNewMatch({ ...newMatch, opponent: text })}
-            style={styles.input}
-          />
-          <TextInput
-            label="Venue"
-            value={newMatch.venue}
-            onChangeText={(text) => setNewMatch({ ...newMatch, venue: text })}
-            style={styles.input}
-          />
-          <TextInput
-            label="Competition"
-            value={newMatch.competition}
-            onChangeText={(text) => setNewMatch({ ...newMatch, competition: text })}
-            style={styles.input}
-          />
-          <TextInput
-            label="Result"
-            value={newMatch.result}
-            onChangeText={(text) => setNewMatch({ ...newMatch, result: text })}
+            label="Team total (runs)"
+            value={newMatch.team_runs != null ? String(newMatch.team_runs) : ''}
+            onChangeText={(text) => setNewMatch({
+              ...newMatch,
+              team_runs: text.trim() ? parseInt(text.replace(/\D/g, ''), 10) : undefined
+            })}
+            keyboardType="number-pad"
+            placeholder="Optional — for % of team runs"
             style={styles.input}
           />
 
@@ -800,6 +1036,27 @@ export default function Matches() {
             keyboardType="numeric"
             style={styles.input}
           />
+          <Text style={styles.subSectionTitle}>Bowling Extras</Text>
+          <TextInput
+            label="Wides"
+            value={newMatch.bowling_wides?.toString()}
+            onChangeText={(text) => setNewMatch({
+              ...newMatch,
+              bowling_wides: parseInt(text) || 0
+            })}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+          <TextInput
+            label="No Balls"
+            value={newMatch.bowling_noballs?.toString()}
+            onChangeText={(text) => setNewMatch({
+              ...newMatch,
+              bowling_noballs: parseInt(text) || 0
+            })}
+            keyboardType="numeric"
+            style={styles.input}
+          />
 
           <Text style={styles.sectionTitle}>Fielding</Text>
           <TextInput
@@ -863,28 +1120,7 @@ export default function Matches() {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Bowling Extras</Text>
-          <TextInput
-            label="Wides"
-            value={newMatch.bowling_wides?.toString()}
-            onChangeText={(text) => setNewMatch({
-              ...newMatch,
-              bowling_wides: parseInt(text) || 0
-            })}
-            keyboardType="numeric"
-            style={styles.input}
-          />
-          <TextInput
-            label="No Balls"
-            value={newMatch.bowling_noballs?.toString()}
-            onChangeText={(text) => setNewMatch({
-              ...newMatch,
-              bowling_noballs: parseInt(text) || 0
-            })}
-            keyboardType="numeric"
-            style={styles.input}
-          />
-
+          <Text style={styles.sectionTitle}>Notes</Text>
           <TextInput
             label="Batting Notes"
             value={newMatch.batting_notes}
@@ -899,9 +1135,16 @@ export default function Matches() {
             multiline
             style={styles.input}
           />
-        </ScrollView>
-      </Dialog.ScrollArea>
-      <Dialog.Actions>
+          <TextInput
+            label="Other Notes (Fielding, Captaincy)"
+            value={newMatch.other_notes}
+            onChangeText={(text) => setNewMatch({ ...newMatch, other_notes: text })}
+            multiline
+            style={styles.input}
+          />
+          </ScrollView>
+        </Dialog.ScrollArea>
+        <Dialog.Actions>
         <Button onPress={() => {
           setShowAddDialog(false);
           setEditingMatch(null);
@@ -931,11 +1174,14 @@ export default function Matches() {
             bowling_noballs: 0,
             batting_notes: '',
             bowling_notes: '',
-            competition: ''
+            other_notes: '',
+            competition: '',
+            team_runs: undefined
           });
         }}>Cancel</Button>
-        <Button onPress={handleAddMatch}>{editingMatch ? 'Save' : 'Add'}</Button>
-      </Dialog.Actions>
+          <Button onPress={handleAddMatch}>{editingMatch ? 'Save' : 'Add'}</Button>
+        </Dialog.Actions>
+      </KeyboardAvoidingView>
     </Dialog>
   );
 
@@ -951,6 +1197,71 @@ export default function Matches() {
         />
       </View>
       
+      <View style={styles.filtersPanel}>
+        <Searchbar
+          placeholder="Search matches..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.filterSearchBar}
+        />
+        <View style={styles.filtersRow}>
+          <View style={styles.filterBlock}>
+            <Text style={styles.filterLabel}>Min runs</Text>
+            <View style={styles.filterInputRow}>
+              <TextInput
+                mode="outlined"
+                placeholder="All"
+                value={minRunsFilter}
+                onChangeText={(text) => setMinRunsFilter(text.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                style={styles.filterInput}
+                dense
+              />
+              {minRunsFilter.trim() !== '' && (
+                <IconButton icon="close-circle" size={18} onPress={() => setMinRunsFilter('')} style={styles.filterClear} />
+              )}
+            </View>
+          </View>
+          <View style={styles.filterBlock}>
+            <Text style={styles.filterLabel}>Min wickets</Text>
+            <View style={styles.filterInputRow}>
+              <TextInput
+                mode="outlined"
+                placeholder="All"
+                value={minWicketsFilter}
+                onChangeText={(text) => setMinWicketsFilter(text.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                style={styles.filterInput}
+                dense
+              />
+              {minWicketsFilter.trim() !== '' && (
+                <IconButton icon="close-circle" size={18} onPress={() => setMinWicketsFilter('')} style={styles.filterClear} />
+              )}
+            </View>
+          </View>
+          <View style={styles.filterBlock}>
+            <Text style={styles.filterLabel}>Sort by</Text>
+            <View style={styles.filterButtonRow}>
+              <Button
+                mode={sortBy === 'date' ? 'contained' : 'outlined'}
+                onPress={() => setSortBy('date')}
+                compact
+                style={styles.filterSortBtn}
+              >
+                Date
+              </Button>
+              <Button
+                mode={sortBy === 'fantasy' ? 'contained' : 'outlined'}
+                onPress={() => setSortBy('fantasy')}
+                compact
+                style={styles.filterSortBtn}
+              >
+                Contribution
+              </Button>
+            </View>
+          </View>
+        </View>
+      </View>
       <View style={styles.contentContainer}>
         {/* Center Detail View */}
         <View style={styles.detailContainer}>
@@ -978,7 +1289,7 @@ export default function Matches() {
         {/* Right Side List */}
         <View style={styles.listContainer}>
           <ScrollView style={styles.matchList}>
-            {matches.map(renderMatchListItem)}
+            {filteredMatches.map(renderMatchListItem)}
           </ScrollView>
         </View>
       </View>
@@ -1048,6 +1359,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#888',
   },
+  matchListFantasy: {
+    fontSize: 11,
+    color: '#2E7D32',
+    marginTop: 2,
+    fontWeight: '600',
+  },
   noSelectionContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1086,6 +1403,32 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: 16,
     marginTop: 16,
+  },
+  fantasySection: {
+    backgroundColor: '#e8f5e9',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 12,
+  },
+  fantasyTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2E7D32',
+    marginBottom: 4,
+  },
+  fantasyTotal: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1B5E20',
+  },
+  fantasyBreakdown: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 6,
+  },
+  fantasyBreakdownText: {
+    fontSize: 12,
+    color: '#388E3C',
   },
   statSection: {
     backgroundColor: '#f8f8f8',
@@ -1153,6 +1496,61 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: 8,
   },
+  filtersPanel: {
+    backgroundColor: '#f5f5f5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  filterSearchBar: {
+    marginBottom: 12,
+    backgroundColor: '#fff',
+    elevation: 0,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  filterBlock: {
+    minWidth: 90,
+  },
+  filterLabel: {
+    fontSize: 12,
+    color: '#49454F',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  filterInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterInput: {
+    width: 72,
+    backgroundColor: '#fff',
+  },
+  filterClear: {
+    margin: 0,
+    marginLeft: -4,
+  },
+  filterButtonRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  filterSortBtn: {
+    minWidth: 0,
+  },
+  dropdownInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dropdownTextInput: {
+    flex: 1,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -1168,9 +1566,15 @@ const styles = StyleSheet.create({
   dialog: {
     maxHeight: '90%',
   },
+  dialogKeyboardView: {
+    maxHeight: '100%',
+  },
+  dialogScrollArea: {
+    maxHeight: 400,
+  },
   dialogContent: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 120,
   },
   matchHeader: {
     flexDirection: 'row',
