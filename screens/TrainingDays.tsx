@@ -91,6 +91,12 @@ const TrainingDays = () => {
 
   const fetchTrainingDays = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setTrainingDays([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('training_days')
         .select(`
@@ -99,6 +105,7 @@ const TrainingDays = () => {
             drill:drills(*)
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -119,9 +126,16 @@ const TrainingDays = () => {
 
   const fetchDrills = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setDrills([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('drills')
         .select('*')
+        .eq('user_id', user.id)
         .order('name');
 
       if (error) throw error;

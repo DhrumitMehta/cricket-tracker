@@ -122,9 +122,16 @@ const Study = () => {
   const fetchNotes = async () => {
     try {
       setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setNotes([]);
+        return;
+      }
+
       let query = supabase
         .from('study_notes')
         .select('*')
+        .eq('user_id', user.id)
         .order('impact', { ascending: sortOrder === 'asc' });
 
       if (filters.category) {
@@ -184,6 +191,9 @@ const Study = () => {
   const handleSubmit = async () => {
     if (validateForm()) {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         if (editingNote) {
           // Update existing note
           const { data, error } = await supabase
@@ -197,6 +207,7 @@ const Study = () => {
               impact: newNote.impact,
             })
             .eq('id', editingNote.id)
+            .eq('user_id', user.id)
             .select()
             .single();
 
@@ -209,6 +220,7 @@ const Study = () => {
             .from('study_notes')
             .insert([
               {
+                user_id: user.id,
                 source: newNote.source.trim(),
                 category: newNote.category,
                 type: newNote.type,

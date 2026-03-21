@@ -1,5 +1,5 @@
 {
-  "name": "cricketer-app",
+  "name": "cricketos",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -32,6 +32,7 @@
     "expo-file-system": "~18.1.9",
     "expo-image-manipulator": "~13.1.6",
     "expo-image-picker": "~16.1.4",
+    "expo-linking": "~7.1.7",
     "expo-media-library": "~17.1.7",
     "expo-sharing": "~13.1.5",
     "expo-status-bar": "~2.2.3",
@@ -56,6 +57,7 @@
     "react-native-svg": "15.11.2",
     "react-native-tab-view": "^4.0.12",
     "react-native-tcp-socket": "^6.3.0",
+    "react-native-url-polyfill": "^3.0.0",
     "react-native-vector-icons": "^10.2.0",
     "react-native-video": "^6.13.0",
     "react-native-view-shot": "^4.0.3",

@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Alert, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Image,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+} from 'react-native';
 import { Button, Text, TextInput, Chip, IconButton, Card } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
+import { useSession } from '../contexts/SessionContext';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +28,7 @@ const PLAY_ROLES = ['Batting All-rounder', 'Bowling All-rounder', 'Batter', 'WK-
 
 export default function PlayerProfile() {
   const navigation = useNavigation<NavigationProp>();
+  const { signOut } = useSession();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -69,6 +80,33 @@ export default function PlayerProfile() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    console.log('[CricketOS][PlayerProfile] handleLogout: opening confirm dialog');
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+        onPress: () => console.log('[CricketOS][PlayerProfile] handleLogout: cancelled'),
+      },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: () => {
+          console.log('[CricketOS][PlayerProfile] handleLogout: confirmed, calling signOut()');
+          void (async () => {
+            const { error } = await signOut();
+            console.log('[CricketOS][PlayerProfile] handleLogout: signOut finished', {
+              error: error?.message ?? null,
+            });
+            if (error) {
+              Alert.alert('Error', error.message);
+            }
+          })();
+        },
+      },
+    ]);
   };
 
   const calculateAge = (dob: Date | null) => {
@@ -271,7 +309,7 @@ export default function PlayerProfile() {
   );
 
   const renderDisplayView = () => (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.formContainer}>
         {renderProfileImage()}
         <Card style={styles.card}>
@@ -337,12 +375,24 @@ export default function PlayerProfile() {
         >
           Edit Profile
         </Button>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Log out"
+          onPress={() => {
+            console.log('[CricketOS][PlayerProfile] Log out control pressed (Pressable)');
+            handleLogout();
+          }}
+          style={({ pressed }) => [styles.logoutPressable, pressed && styles.logoutPressablePressed]}
+        >
+          <Text style={styles.logoutPressableText}>Log out</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
 
   const renderEditView = () => (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.formContainer}>
         {renderProfileImage()}
         <TextInput
@@ -525,6 +575,24 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 8,
+  },
+  logoutPressable: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#c62828',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutPressablePressed: {
+    opacity: 0.75,
+  },
+  logoutPressableText: {
+    color: '#c62828',
+    fontSize: 15,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,

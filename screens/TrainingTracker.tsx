@@ -96,6 +96,12 @@ export default function TrainingTracker() {
   const fetchSessions = async () => {
     try {
       setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setSessions([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('training_sessions')
         .select(`
@@ -106,6 +112,7 @@ export default function TrainingTracker() {
             type
           )
         `)
+        .eq('user_id', user.id)
         .order('date', { ascending: false });
 
       if (error) throw error;

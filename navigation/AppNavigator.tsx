@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { IconButton } from 'react-native-paper';
+import * as Linking from 'expo-linking';
 import TrainingTracker from '../screens/TrainingTracker';
 import AddTrainingSession from '../screens/AddTrainingSession';
 import PlayerProfile from '../screens/PlayerProfile';
@@ -10,6 +10,7 @@ import SignUp from '../screens/SignUp';
 import Matches from '../screens/Matches';
 import BottomTabNavigator from './BottomTabNavigator';
 import { supabase } from '../lib/supabase';
+import { useSession } from '../contexts/SessionContext';
 import Stats from '../screens/Stats';
 import Analysis from '../screens/Analysis';
 import Study from '../screens/Study';
@@ -28,20 +29,37 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { session, loading } = useSession();
 
+  // Email confirmation / magic-link: open app via cricketos:// and finish session (PKCE or implicit).
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    const handleUrl = async (url: string | null) => {
+      if (!url) return;
+      try {
+        const parsed = Linking.parse(url);
+        const code = parsed.queryParams?.code;
+        if (typeof code === 'string') {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) console.warn('Auth code exchange:', error.message);
+          return;
+        }
+        const hashIdx = url.indexOf('#');
+        if (hashIdx !== -1) {
+          const params = new URLSearchParams(url.slice(hashIdx + 1));
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+          if (access_token && refresh_token) {
+            await supabase.auth.setSession({ access_token, refresh_token });
+          }
+        }
+      } catch (e) {
+        console.warn('Auth deep link:', e);
+      }
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+    Linking.getInitialURL().then(handleUrl);
+    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => sub.remove();
   }, []);
 
   if (loading) {
@@ -50,7 +68,7 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator key={session?.user?.id ?? 'unauthenticated'}>
         {!session ? (
           <>
             <Stack.Screen 

@@ -362,7 +362,7 @@ const Analysis = () => {
 
           // Save to media library
           const asset = await MediaLibrary.createAssetAsync(outputUri);
-          await MediaLibrary.createAlbumAsync('Cricketer App', asset, false);
+          await MediaLibrary.createAlbumAsync('CricketOS', asset, false);
 
           // Clean up
           await FileSystem.deleteAsync(outputUri, { idempotent: true });

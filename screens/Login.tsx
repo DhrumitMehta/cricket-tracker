@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, StatusBar } from 'react-native';
+import { View, StyleSheet, ScrollView, StatusBar, Image } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
@@ -41,7 +41,13 @@ export default function Login() {
       <StatusBar barStyle="dark-content" backgroundColor="white" />
       <ScrollView style={styles.container}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Welcome to Cricketer App</Text>
+          <Image
+            source={require('../assets/cricketos-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="CricketOS"
+          />
+          <Text style={styles.title}>Welcome to CricketOS</Text>
           
           <TextInput
             label="Email"
@@ -99,6 +105,12 @@ const styles = StyleSheet.create({
     padding: 16,
     flex: 1,
     justifyContent: 'center',
+  },
+  logo: {
+    width: 200,
+    height: 200,
+    alignSelf: 'center',
+    marginBottom: 8,
   },
   title: {
     fontSize: 24,

@@ -83,9 +83,16 @@ const Drills = () => {
   const fetchDrills = async () => {
     try {
       setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setDrills([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('drills')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -130,6 +137,9 @@ const Drills = () => {
   const handleSubmit = async () => {
     if (validateForm()) {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         if (editingDrill) {
           // Update existing drill
           const { data, error } = await supabase
@@ -142,6 +152,7 @@ const Drills = () => {
               equipment_needed: newDrill.equipment_needed,
             })
             .eq('id', editingDrill.id)
+            .eq('user_id', user.id)
             .select()
             .single();
 
@@ -154,6 +165,7 @@ const Drills = () => {
             .from('drills')
             .insert([
               {
+                user_id: user.id,
                 name: newDrill.name.trim(),
                 category: newDrill.category,
                 difficulty: newDrill.difficulty,

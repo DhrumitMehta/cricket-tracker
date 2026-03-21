@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
+import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -38,9 +39,13 @@ export default function SignUp() {
       }
 
       // Sign up with Supabase
+      const emailRedirectTo = Linking.createURL('auth/callback');
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          emailRedirectTo,
+        },
       });
 
       if (authError) throw authError;
