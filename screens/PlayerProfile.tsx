@@ -13,6 +13,7 @@ import { Button, Text, TextInput, Chip, IconButton, Card } from 'react-native-pa
 import { supabase } from '../lib/supabase';
 import { useSession } from '../contexts/SessionContext';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -28,6 +29,7 @@ const PLAY_ROLES = ['Batting All-rounder', 'Bowling All-rounder', 'Batter', 'WK-
 
 export default function PlayerProfile() {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
   const { signOut } = useSession();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -308,8 +310,14 @@ export default function PlayerProfile() {
     </View>
   );
 
+  const scrollBottomPadding = Math.max(insets.bottom, 12) + 32;
+
   const renderDisplayView = () => (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.container}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
+    >
       <View style={styles.formContainer}>
         {renderProfileImage()}
         <Card style={styles.card}>
@@ -392,7 +400,11 @@ export default function PlayerProfile() {
   );
 
   const renderEditView = () => (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.container}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
+    >
       <View style={styles.formContainer}>
         {renderProfileImage()}
         <TextInput
