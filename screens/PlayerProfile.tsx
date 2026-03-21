@@ -84,7 +84,31 @@ export default function PlayerProfile() {
     }
   };
 
+  const runSignOut = async () => {
+    const { error } = await signOut();
+    console.log('[CricketOS][PlayerProfile] signOut finished', { error: error?.message ?? null });
+    if (error) {
+      if (Platform.OS === 'web') {
+        window.alert(error.message);
+      } else {
+        Alert.alert('Error', error.message);
+      }
+      return;
+    }
+    // Web: Alert.alert is unreliable in react-native-web; session + navigation can also stick without a full reload.
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  };
+
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out?')) {
+        void runSignOut();
+      }
+      return;
+    }
+
     console.log('[CricketOS][PlayerProfile] handleLogout: opening confirm dialog');
     Alert.alert('Log out', 'Are you sure you want to log out?', [
       {
@@ -97,15 +121,7 @@ export default function PlayerProfile() {
         style: 'destructive',
         onPress: () => {
           console.log('[CricketOS][PlayerProfile] handleLogout: confirmed, calling signOut()');
-          void (async () => {
-            const { error } = await signOut();
-            console.log('[CricketOS][PlayerProfile] handleLogout: signOut finished', {
-              error: error?.message ?? null,
-            });
-            if (error) {
-              Alert.alert('Error', error.message);
-            }
-          })();
+          void runSignOut();
         },
       },
     ]);
