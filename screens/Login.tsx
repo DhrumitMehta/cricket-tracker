@@ -28,7 +28,7 @@ export default function Login() {
 
       if (error) throw error;
       
-      navigation.replace('TrainingTracker');
+      navigation.replace('Main');
     } catch (error: any) {
       setError(error.message);
     } finally {
