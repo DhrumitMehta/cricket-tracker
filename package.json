@@ -36,7 +36,6 @@
     "expo-sharing": "~13.1.5",
     "expo-status-bar": "~2.2.3",
     "expo-video": "~2.2.1",
-    "ffmpeg-kit-react-native": "5.1.0",
     "https-browserify": "^1.0.0",
     "metro": "^0.82.3",
     "metro-core": "^0.82.3",
