@@ -1,0 +1,34 @@
+name: Supabase Keep-Alive
+
+# Pings the Supabase project every 3 days so it never hits the
+# 7-day free-tier inactivity pause.
+
+on:
+  schedule:
+    # Runs at 09:00 UTC every 3 days
+    - cron: '0 9 */3 * *'
+  workflow_dispatch: {}  # lets you trigger it manually from the Actions tab to test
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${SUPABASE_URL}/rest/v1/${TABLE_NAME}?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+
+          echo "Response code: $response"
+
+          if [ "$response" -ge 200 ] && [ "$response" -lt 300 ]; then
+            echo "✅ Supabase project pinged successfully."
+          else
+            echo "❌ Ping failed with status $response"
+            exit 1
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          TABLE_NAME: ${{ vars.SUPABASE_TABLE_NAME }}
